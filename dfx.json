@@ -1,0 +1,35 @@
+{
+  "canisters": {
+    "socials": {
+      "main": "src/socials/main.mo",
+      "type": "motoko"
+    },
+    "socials_assets": {
+      "dependencies": [
+        "socials"
+      ],
+      "frontend": {
+        "entrypoint": "src/socials_assets/src/index.html"
+      },
+      "source": [
+        "src/socials_assets/assets",
+        "dist/socials_assets/"
+      ],
+      "type": "assets"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "dfx": "0.9.2",
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
+    }
+  },
+  "version": 1
+}

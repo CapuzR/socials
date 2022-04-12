@@ -32,6 +32,9 @@ actor {
 
     stable var likes : [(Text, Principal)] = [];//postId|commentId|suggestionCommentId,artistPrincipal
     let likesRels = Rels.Rels<Text, Principal>((Text.hash, Principal.hash), (Text.equal, Principal.equal), likes);
+
+    stable var follows : [(Principal, Principal)] = [];//artistPrincipal,followerPrincipal
+    let followsRels = Rels.Rels<Principal, Principal>((Principal.hash, Principal.hash), (Principal.equal, Principal.equal), follows);
     
     stable var postSuggestions : [(Text,Text)] = [];//postId,suggestionCommentId
     let postSuggestionsRels = Rels.Rels<Text, Text>((Text.hash, Text.hash), (Text.equal, Text.equal), postSuggestions);
@@ -179,11 +182,6 @@ actor {
         };
         #ok(postsBuff.toArray());
     };
-
-    public query({caller}) func readFirstPostId (artistPpal : Principal) : async Text {
-
-        userPostsRels.get0(artistPpal)[0];
-    };
     
     public shared({caller}) func updatePost (postData : PostUpdate) : async Result.Result<(), Error> {
 
@@ -296,6 +294,48 @@ actor {
         #ok(());
 
     };
+    
+//Follows
+    public shared({caller}) func addFollow (artistPpal : Principal) : async Result.Result<(), Error> {
+
+        if(Principal.isAnonymous(caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        follows.put(artistPpal, caller);
+        #ok(());
+    };
+
+    public query({caller}) func readArtistFollowersQty (artistPpal : Principal) : async Result.Result<Nat, Error> {
+
+        if(Principal.isAnonymous(caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        #ok(readArtistFollows.get0(artistPpal).size());
+
+    };
+
+    public query({caller}) func readArtistFollowsQty (artistPpal : Principal) : async Result.Result<Nat, Error> {
+
+        if(Principal.isAnonymous(caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        #ok(readArtistFollows.get1(artistPpal).size());
+
+    };
+
+    public shared({caller}) func removeFollow (artistPpal : Principal) : async Result.Result<(), Error> {
+
+        if(Principal.isAnonymous(caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        follows.delete(artistPpal, caller);
+        #ok(());
+
+    };
 //Suggestions
     public shared({caller}) func addSuggestion (postId : Text, suggestion : SuggestionCreate) : async Result.Result<(), Error> {
 
@@ -404,7 +444,7 @@ actor {
         #ok(());
     };
 
-    public shared({caller}) func readComments (targetId : Text) : async Result.Result<[(Text, Comment)], Error> {
+    public query({caller}) func readComments (targetId : Text) : async Result.Result<[(Text, Comment)], Error> {
 
         let targetComments = Trie.find(
             comments, 
@@ -418,25 +458,6 @@ actor {
             };
             case (? cs) {
                 #ok(_readComments(cs));
-            };
-        };
-    };
-
-    public shared({caller}) func readFirstCommentById (targetId : Text) : async Text {
-
-        let targetComments = Trie.find(
-            comments, 
-            Utils.keyText(targetId),
-            Text.equal
-        );
-
-        switch(targetComments) {
-            case null {
-                "Target doesn't have comments.";
-            };
-            case (? cs) {
-                let fCsIter : Iter.Iter<(Text, Comment)> = Trie.iter(cs);
-                Iter.toArray(fCsIter)[0].0;
             };
         };
     };
@@ -763,5 +784,40 @@ actor {
     // };
 
 //-----------End Private
+
+//---------------For internal test only
+
+    public query({caller}) func readFirstPostId (artistPpal : Principal) : async Text {
+
+        userPostsRels.get0(artistPpal)[0];
+    };
+
+    public query func commentsSize() :async Nat {
+        Trie.size(comments);
+    };
+
+    public query({caller}) func artistsCommentsSize(principal : Principal) :async Nat {
+        artistCommentsRels.get0(principal).size();
+    };
+
+    public query({caller}) func readFirstCommentById (targetId : Text) : async Text {
+
+        let targetComments = Trie.find(
+            comments, 
+            Utils.keyText(targetId),
+            Text.equal
+        );
+
+        switch(targetComments) {
+            case null {
+                "Target doesn't have comments.";
+            };
+            case (? cs) {
+                let fCsIter : Iter.Iter<(Text, Comment)> = Trie.iter(cs);
+                Iter.toArray(fCsIter)[0].0;
+            };
+        };
+    };
+//-----------End For internal tests only.
 
 };

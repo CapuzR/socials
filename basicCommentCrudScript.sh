@@ -18,8 +18,36 @@ dfx canister call socials createComment '('$postId', record {commentBasics=recor
 
 #Get CommentId
 echo "Get commentId"
-commentId=$(dfx canister call socials readFirstCommentById '(principal "'$principal'")')
+commentId=$(dfx canister call socials readFirstCommentById '('$postId')')
 echo $commentId
+
+# Get Post by PostId
+echo "Read post by Id, must return post with comments."
+dfx canister call socials readPostById '('$postId')'
+
+# Create 1 comment inside a comment
+echo "Creating comment in a comment..."
+dfx canister call socials createComment '('$commentId', record {commentBasics=record {content="Este es el comentario 1 dentro del comentario 1"; details=null; category=null}})'
+
+# Create another comment inside a comment
+echo "Creating another comment in a comment..."
+dfx canister call socials createComment '('$commentId', record {commentBasics=record {content="Este es el comentario 2 dentro del comentario 1"; details=null; category=null}})'
+
+# Create another comment inside a comment
+echo "Creating another comment in a comment..."
+dfx canister call socials createComment '('$commentId', record {commentBasics=record {content="Este es el comentario 3 dentro del comentario 1"; details=null; category=null}})'
+
+# Get Comments by CommentId
+echo "Read comment by parent commentId, must return comments."
+dfx canister call socials readComments '('$commentId')'
+
+# Remove Comments by CommentId
+# echo "Remove comment."
+# dfx canister call socials removeComments '('$commentId')'
+
+# Get Comments by CommentId
+# echo "Read comment by parent commentId, must return none."
+# dfx canister call socials readComments '('$commentId')'
 
 # Get Posts by Principal
 # echo "Consulta mis posts por mi principal"

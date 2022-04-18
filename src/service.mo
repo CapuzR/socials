@@ -33,8 +33,7 @@ actor Self {
     type CommentUpdate = Types.CommentUpdate;
 
 //State
-    //Aquí se debe agregar el canisterId del ArtistRegistry
-    stable var authorized : [Principal] = [];
+    stable var authorized : [Principal] = [Principal.fromText("exr4a-6lhtv-ftrv4-hf5dc-co5x7-2fgz7-mlswm-q3bjo-hehbc-lmmw4-tqe")];
 
     stable var posts : Trie.Trie<Text, Post> = Trie.empty();//postId,Post
     
@@ -75,7 +74,6 @@ actor Self {
     let artistGalleriesRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), artistGalleries);
     
 //---------------Public
-
 //Post
     public shared({caller}) func createPost (postData : PostCreate) : async Result.Result<(), Error> {
 
@@ -102,6 +100,33 @@ actor Self {
             case null {
                 posts := newPosts;
                 artistPostsRels.put(caller, postId);
+                label l for(d in postData.postBasics.details.vals()) {
+                    if(d.0 == "galleryId") {
+                        switch(d.1){
+                            case(#Text(g)) {
+                                galleryPostRels.put(g, postId);
+                                break l;
+                            };
+                            case(#Vec(galls)) {
+                                for(g in galls.vals()) {
+                                    switch(g){
+                                        case(#Text(gId)) {
+                                            galleryPostRels.put(gId, postId);
+                                            break l;
+                                        };
+                                        case(_) {
+                                            break l;
+                                        };
+                                    };
+                                };
+                                break l;
+                            };
+                            case (_) {
+                                break l;
+                            };
+                        };
+                    }
+                };
                 #ok(());
             };
             case (? v) {
@@ -205,6 +230,7 @@ actor Self {
         };
         #ok(postsBuff.toArray());
     };
+
     //ExploreFeed
     public query({caller}) func readPostsByCreation (qty : Int, page : Int) : async Result.Result<[PostRead], Error> {
 
@@ -256,6 +282,7 @@ actor Self {
 
         #ok(Array.sort(pBuff.toArray(), Utils.comparePR));
     };
+
     //PersonalFeed
     public query({caller}) func readFollowsPostsByCreation (artistPpal : Principal, qty : Int, page : Int) : async Result.Result<[PostRead], Error> {
 
@@ -360,6 +387,37 @@ actor Self {
                     Text.equal,
                     ?newPost
                 ).0;
+
+                for(gI in galleryPostRels.get1(postData.postId).vals()){
+                    galleryPostRels.delete(gI, postData.postId);
+                };
+                label l for(d in postData.postBasics.details.vals()) {
+                    if(d.0 == "galleryId") {
+                        switch(d.1){
+                            case(#Text(g)) {
+                                galleryPostRels.put(g, postData.postId);
+                                break l;
+                            };
+                            case(#Vec(galls)) {
+                                label m for(g in galls.vals()) {
+                                    switch(g){
+                                        case(#Text(gId)) {
+                                            galleryPostRels.put(gId, postData.postId);
+                                            break m;
+                                        };
+                                        case(_) {
+                                            break m;
+                                        };
+                                    };
+                                };
+                                break l;
+                            };
+                            case (_) {
+                                break l;
+                            };
+                        };
+                    }
+                };
                 #ok(());
             };
         };
@@ -392,6 +450,9 @@ actor Self {
                 artistPostsRels.delete(caller, postId);
                 _removeAllLikes(postId);
                 _removeAllSuggestions(postId);
+                for(gI in galleryPostRels.get1(postId).vals()){
+                    galleryPostRels.delete(gI, postId);
+                };
                 _removeAllComments(postId);
             };
         };
@@ -463,7 +524,7 @@ actor Self {
         };
         #ok(artistGalleries.toArray());
     };
-    //cambio ac'a en params, se quit'o artGalleryId
+    
     public shared({caller}) func updateArtGallery (galleryData : GalleryUpdate) : async Result.Result<(), Error> {
         
         if(Principal.isAnonymous(caller) or Principal.notEqual(artistGalleriesRels.get1(galleryData.id)[0], caller)) {
@@ -534,6 +595,9 @@ actor Self {
                     ).0;
                     if(artistGalleriesRels.get1(galleryId).size() != 0) {
                         artistGalleriesRels.delete(caller, galleryId);
+                        for(postId in galleryPostRels.get0(galleryId).vals()){
+                            galleryPostRels.delete(galleryId, postId);
+                        };
                     };
                     return #ok(());
                 };

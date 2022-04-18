@@ -21,6 +21,7 @@ actor Self {
     type PostUpdate = Types.PostUpdate;
     type Post = Types.Post;
     type PostRead = Types.PostRead;
+    type ArtistRead = Types.ArtistRead;
     type GalleryCreate = Types.GalleryCreate;
     type GalleryUpdate = Types.GalleryUpdate;
     type Gallery = Types.Gallery;
@@ -66,9 +67,6 @@ actor Self {
 
     stable var artistComments : [(Principal, Text)] = [];//artistPrincipal,commentId
     let artistCommentsRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), artistComments);
-
-    stable var artGalleries : [(Principal, Text)] = [];//artistPrincipal,postId
-    let artGalleriesRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), artGalleries);
 
     stable var galleryPost : [(Text,Text)] = [];
     let galleryPostRels = Rels.Rels<Text, Text>((Text.hash, Text.hash), (Text.equal, Text.equal), galleryPost);
@@ -151,7 +149,7 @@ actor Self {
             };
         };
     };
-
+    //AJACHO
     public query({caller}) func readPostById (postId : Text) : async Result.Result<PostRead, Error> {
 
         if(Principal.isAnonymous(caller)) {
@@ -182,10 +180,10 @@ actor Self {
                     };
                     case (? cs) {
                         #ok({
-                            post = post;
-                            comments= ?_readComments(cs);
-                            suggestions= ?_readPostSuggestions(postId);
-                            likeQty= _readLikesQtyByTarget(postId);
+                            post = post;                                
+                            comments = ?_readComments(cs);
+                            suggestions = ?_readPostSuggestions(postId);
+                            likesQty = _readLikesQtyByTarget(postId);
                         });
                     };
                 };
@@ -194,61 +192,7 @@ actor Self {
 
     };
 
-    public query({caller}) func readPostsByPpal (artistPpal : Principal) : async Result.Result<[PostRead], Error> {
-
-        if(Principal.isAnonymous(caller)) {
-            return #err(#NotAuthorized);
-        };
-
-        let postsIds = artistPostsRels.get0(artistPpal);
-        var postsBuff : Buffer.Buffer<PostRead> = Buffer.Buffer(0);
-        label l for( pId in postsIds.vals() ){
-            let targetPost = Trie.find(
-                posts, 
-                Utils.keyText(pId),
-                Text.equal
-            );
-
-            switch(targetPost) {
-                case null {
-                    // #err(#Unknown("Post doesn't exist."));
-                    continue l;
-                };
-                case (? post) {
-                    
-                    let targetComments = Trie.find(
-                        comments, 
-                        Utils.keyText(pId),
-                        Text.equal
-                    );
-
-                    switch(targetComments) {
-                        case null {
-                            postsBuff.add({
-                                post = post;
-                                comments = null;
-                                suggestions = ?_readPostSuggestions(pId);
-                                likeQty = _readLikesQtyByTarget(pId);
-                            });
-                            continue l;
-                        };
-                        case (? cs) {
-                            postsBuff.add({
-                                post = post;
-                                comments= ?_readComments(cs);
-                                suggestions= ?_readPostSuggestions(pId);
-                                likeQty= _readLikesQtyByTarget(pId);
-                            });
-                            continue l;
-                        };
-                    };
-                };
-            };
-        };
-        #ok(postsBuff.toArray());
-    };
-
-    public query({caller}) func readArtistProfile (username : Text) : async Result.Result<[PostRead], Error> {
+    public query({caller}) func readArtistProfile (username : Text) : async Result.Result<ArtistRead, Error> {
 
         if(Principal.isAnonymous(caller)) {
             return #err(#NotAuthorized);
@@ -289,7 +233,7 @@ actor Self {
                                 post = post;
                                 comments = null;
                                 suggestions = ?_readPostSuggestions(pId);
-                                likeQty = _readLikesQtyByTarget(pId);
+                                likesQty = _readLikesQtyByTarget(pId);
                             });
                             continue l;
                         };
@@ -298,7 +242,7 @@ actor Self {
                                 post = post;
                                 comments= ?_readComments(cs);
                                 suggestions= ?_readPostSuggestions(pId);
-                                likeQty= _readLikesQtyByTarget(pId);
+                                likesQty= _readLikesQtyByTarget(pId);
                             });
                             continue l;
                         };
@@ -306,7 +250,13 @@ actor Self {
                 };
             };
         };
-        #ok(postsBuff.toArray());
+        #ok({
+            postsRead = postsBuff.toArray(); 
+            followersQty = _readFollowersQty(artistPpal);
+            followsQty = _readFollowsQty(artistPpal);
+            postsQty = _readPostsQty(artistPpal);
+            galleriesQty = _readGalleriesQty(artistPpal);
+        });
     };
 
     //ExploreFeed
@@ -343,7 +293,7 @@ actor Self {
                         post = p.1;
                         comments = null;
                         suggestions = ?_readPostSuggestions(p.0);
-                        likeQty = _readLikesQtyByTarget(p.0);
+                        likesQty = _readLikesQtyByTarget(p.0);
                     });
                     continue l;
                 };
@@ -352,7 +302,7 @@ actor Self {
                         post = p.1;
                         comments = ?_readComments(cs);
                         suggestions = ?_readPostSuggestions(p.0);
-                        likeQty = _readLikesQtyByTarget(p.0);
+                        likesQty = _readLikesQtyByTarget(p.0);
                     });
                 };
             };
@@ -424,7 +374,7 @@ actor Self {
                                 post = post;
                                 comments = null;
                                 suggestions = ?_readPostSuggestions(pId);
-                                likeQty = _readLikesQtyByTarget(pId);
+                                likesQty = _readLikesQtyByTarget(pId);
                             });
                             continue l;
                         };
@@ -433,7 +383,7 @@ actor Self {
                                 post = post;
                                 comments = ?_readComments(cs);
                                 suggestions = ?_readPostSuggestions(pId);
-                                likeQty = _readLikesQtyByTarget(pId);
+                                likesQty = _readLikesQtyByTarget(pId);
                             });
                         };
                     };
@@ -951,8 +901,13 @@ actor Self {
         if(not Utils.isAuthorized(caller, authorized)) {
             return #err(#NotAuthorized);
         };
-        
-        #ok(principalUsernameRels.put(artistP, username));
+        if(principalUsernameRels.get0(artistP).size() != 0){
+            for(u in principalUsernameRels.get0(artistP).vals()) {
+                principalUsernameRels.delete(artistP, u);
+            }
+        };
+            principalUsernameRels.put(artistP, username);
+        #ok();
     };
 
 //-----------End Public
@@ -979,6 +934,25 @@ actor Self {
             null
         );
 
+    };
+
+    private func _readPostsQty(artistPpal : Principal) : Nat {
+        artistPostsRels.get0(artistPpal).size();
+    };
+//Follows
+
+    private func _readFollowersQty(artistPpal : Principal) : Nat {
+        followsRels.get0(artistPpal).size();
+    };
+
+    private func _readFollowsQty(artistPpal : Principal) : Nat {
+        followsRels.get1(artistPpal).size();
+    };
+
+//Galleries
+
+    private func _readGalleriesQty(artistPpal : Principal) : Nat {
+        artistGalleriesRels.get0(artistPpal).size();
     };
 
 //Likes

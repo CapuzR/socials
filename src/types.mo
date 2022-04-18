@@ -27,7 +27,15 @@ module {
         post: Post;
         comments: ?[(Principal, Text, Text, Comment)];
         suggestions: ?[(Principal, Text, Text, Suggestion)];
-        likeQty: Nat;
+        likesQty: Int;
+    };
+
+    public type ArtistRead = {
+        postsRead: [PostRead];
+        followersQty: Nat;
+        followsQty: Nat;
+        postsQty: Nat;
+        galleriesQty: Nat;
     };
 
     public type Gallery = {

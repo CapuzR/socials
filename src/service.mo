@@ -2,7 +2,9 @@ import Types "./types";
 import Trie "mo:base/Trie";
 import Principal "mo:base/Principal";
 import Buffer "mo:base/Buffer";
+import Array "mo:base/Array";
 import Text "mo:base/Text";
+import Int "mo:base/Int";
 import Iter "mo:base/Iter";
 import Result "mo:base/Result";
 import Time "mo:base/Time";
@@ -11,7 +13,7 @@ import Source "mo:uuid/async/SourceV4";
 import UUID "mo:uuid/UUID";
 import Utils "./utils";
 
-actor {
+actor Self {
 
 //Types
     type Error = Types.Error;
@@ -19,6 +21,9 @@ actor {
     type PostUpdate = Types.PostUpdate;
     type Post = Types.Post;
     type PostRead = Types.PostRead;
+    type GalleryCreate = Types.GalleryCreate;
+    type GalleryUpdate = Types.GalleryUpdate;
+    type Gallery = Types.Gallery;
     type Suggestion = Types.Suggestion;
     type SuggestionCreate = Types.SuggestionCreate;
     type SuggestionUpdate = Types.SuggestionUpdate;
@@ -28,7 +33,12 @@ actor {
     type CommentUpdate = Types.CommentUpdate;
 
 //State
+    //Aquí se debe agregar el canisterId del ArtistRegistry
+    stable var authorized : [Principal] = [];
+
     stable var posts : Trie.Trie<Text, Post> = Trie.empty();//postId,Post
+    
+    stable var galleries : Trie.Trie<Text, Gallery> = Trie.empty();//postId,Gallery
 
     stable var likes : [(Text, Principal)] = [];//postId|commentId|suggestionCommentId,artistPrincipal
     let likesRels = Rels.Rels<Text, Principal>((Text.hash, Principal.hash), (Text.equal, Principal.equal), likes);
@@ -36,23 +46,36 @@ actor {
     stable var follows : [(Principal, Principal)] = [];//artistPrincipal,followerPrincipal
     let followsRels = Rels.Rels<Principal, Principal>((Principal.hash, Principal.hash), (Principal.equal, Principal.equal), follows);
     
+    stable var principalUsername : [(Principal, Text)] = [];//artistPrincipal,followerPrincipal
+    let principalUsernameRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), principalUsername);
+    
     stable var postSuggestions : [(Text,Text)] = [];//postId,suggestionCommentId
     let postSuggestionsRels = Rels.Rels<Text, Text>((Text.hash, Text.hash), (Text.equal, Text.equal), postSuggestions);
     
-    stable var artistSuggestions : [(Principal,Text)] = [];//artistPrincipal,suggestionCommentId
+    stable var artistSuggestions : [(Principal,Text)] = [];//artistPrincipal,suggestionId
     let artistSuggestionsRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), artistSuggestions);
     
-    stable var suggestions : Trie.Trie<Text, Suggestion> = Trie.empty();//suggestionCommentId,Suggestion
+    stable var suggestions : Trie.Trie<Text, Suggestion> = Trie.empty();//suggestionId,Suggestion
 
-    stable var comments : Trie.Trie2D<Text, Text, Comment> = Trie.empty(); //postId|commentId|suggestionCommentId,(commentId|suggestionCommentId,comment)
+    stable var comments : Trie.Trie2D<Text, Text, Comment> = Trie.empty(); //postId|commentId|suggestionId,(commentId|suggestionCommentId,comment)
 
-    stable var userPosts : [(Principal, Text)] = []; //artistPrincipal,postId
-    let userPostsRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), userPosts); //artistPrincipal,postId
+    stable var artistPosts : [(Principal, Text)] = []; //artistPrincipal,postId
+    let artistPostsRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), artistPosts); //artistPrincipal,postId
 
     stable var artistComments : [(Principal, Text)] = [];//artistPrincipal,commentId
     let artistCommentsRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), artistComments);
 
+    stable var artGalleries : [(Principal, Text)] = [];//artistPrincipal,postId
+    let artGalleriesRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), artGalleries);
+
+    stable var galleryPost : [(Text,Text)] = [];
+    let galleryPostRels = Rels.Rels<Text, Text>((Text.hash, Text.hash), (Text.equal, Text.equal), galleryPost);
+    
+    stable var artistGalleries : [(Principal,Text)] = [];
+    let artistGalleriesRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), artistGalleries);
+    
 //---------------Public
+
 //Post
     public shared({caller}) func createPost (postData : PostCreate) : async Result.Result<(), Error> {
 
@@ -78,7 +101,7 @@ actor {
         switch(existing) {
             case null {
                 posts := newPosts;
-                userPostsRels.put(caller, postId);
+                artistPostsRels.put(caller, postId);
                 #ok(());
             };
             case (? v) {
@@ -135,7 +158,7 @@ actor {
             return #err(#NotAuthorized);
         };
 
-        let postsIds = userPostsRels.get0(artistPpal);
+        let postsIds = artistPostsRels.get0(artistPpal);
         var postsBuff : Buffer.Buffer<PostRead> = Buffer.Buffer(0);
         label l for( pId in postsIds.vals() ){
             let targetPost = Trie.find(
@@ -161,9 +184,9 @@ actor {
                         case null {
                             postsBuff.add({
                                 post = post;
-                                comments= null;
-                                suggestions= ?_readPostSuggestions(pId);
-                                likeQty= _readLikesQtyByTarget(pId);
+                                comments = null;
+                                suggestions = ?_readPostSuggestions(pId);
+                                likeQty = _readLikesQtyByTarget(pId);
                             });
                             continue l;
                         };
@@ -182,10 +205,134 @@ actor {
         };
         #ok(postsBuff.toArray());
     };
+    //ExploreFeed
+    public query({caller}) func readPostsByCreation (qty : Int, page : Int) : async Result.Result<[PostRead], Error> {
+
+        if(Principal.isAnonymous(caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        let pIter : Iter.Iter<(Text, Post)> = Trie.iter(posts);
+        let pBuff : Buffer.Buffer<PostRead> = Buffer.Buffer(0);
+        var pCount : Int = 0;
+        
+        label l for (p in pIter) {
+
+            if ( pCount < (qty*page - qty) ) {
+                pCount += 1;
+                continue l;
+            };
+            if ( pCount == qty*page ) {
+                break l;
+            };
+            pCount += 1;
+
+            let targetComments = Trie.find(
+                comments, 
+                Utils.keyText(p.0),
+                Text.equal
+            );
+
+            switch(targetComments) {
+                case null {
+                    pBuff.add({
+                        post = p.1;
+                        comments = null;
+                        suggestions = ?_readPostSuggestions(p.0);
+                        likeQty = _readLikesQtyByTarget(p.0);
+                    });
+                    continue l;
+                };
+                case (? cs) {
+                    pBuff.add({
+                        post = p.1;
+                        comments = ?_readComments(cs);
+                        suggestions = ?_readPostSuggestions(p.0);
+                        likeQty = _readLikesQtyByTarget(p.0);
+                    });
+                };
+            };
+        };
+
+        #ok(Array.sort(pBuff.toArray(), Utils.comparePR));
+    };
+    //PersonalFeed
+    public query({caller}) func readFollowsPostsByCreation (artistPpal : Principal, qty : Int, page : Int) : async Result.Result<[PostRead], Error> {
+
+        if(Principal.isAnonymous(caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        let artistPpalArr : [Principal] = followsRels.get1(artistPpal);
+        let pBuff : Buffer.Buffer<PostRead> = Buffer.Buffer(0);
+        let pIdBuff : Buffer.Buffer<Text> = Buffer.Buffer(0);
+        var pCount : Int = 0;
+        
+        for (a in artistPpalArr.vals()) {
+            let pArr : [Text] = artistPostsRels.get0(a);
+
+            for (p in pArr.vals()) {
+                pIdBuff.add(p);
+            };
+        };
+
+        label l for (pId in pIdBuff.vals()) {
+            if ( pCount < (qty*page - qty) ) {
+                pCount += 1;
+                continue l;
+            };
+            if ( pCount == qty*page ) {
+                break l;
+            };
+            pCount += 1;
+
+        
+            let targetPost = Trie.find(
+                posts, 
+                Utils.keyText(pId),
+                Text.equal
+            );
+
+            switch(targetPost) {
+                case null {
+                    continue l;
+                };
+                case (? post) {
+
+                    let targetComments = Trie.find(
+                        comments, 
+                        Utils.keyText(pId),
+                        Text.equal
+                    );
+
+                    switch(targetComments) {
+                        case null {
+                            pBuff.add({
+                                post = post;
+                                comments = null;
+                                suggestions = ?_readPostSuggestions(pId);
+                                likeQty = _readLikesQtyByTarget(pId);
+                            });
+                            continue l;
+                        };
+                        case (? cs) {
+                            pBuff.add({
+                                post = post;
+                                comments = ?_readComments(cs);
+                                suggestions = ?_readPostSuggestions(pId);
+                                likeQty = _readLikesQtyByTarget(pId);
+                            });
+                        };
+                    };
+                };
+            };
+        };
+        #ok(Array.sort(pBuff.toArray(), Utils.comparePR));
+    };
     
     public shared({caller}) func updatePost (postData : PostUpdate) : async Result.Result<(), Error> {
 
-        if(Principal.isAnonymous(caller) or Principal.notEqual(userPostsRels.get1(postData.postId)[0], caller)) {
+        if(Principal.isAnonymous(caller) or Principal.notEqual(artistPostsRels.get1(postData.postId)[0], caller)) {
             return #err(#NotAuthorized);
         };
 
@@ -219,10 +366,9 @@ actor {
 
     };
 
-    //This should delete all dependencies.
     public shared({caller}) func removePost (postId : Text) : async Result.Result<(), Error> {
 
-        if(Principal.isAnonymous(caller) or Principal.notEqual(userPostsRels.get1(postId)[0], caller)) {
+        if(Principal.isAnonymous(caller) or Principal.notEqual(artistPostsRels.get1(postId)[0], caller)) {
             return #err(#NotAuthorized);
         };
 
@@ -243,7 +389,7 @@ actor {
                     Text.equal,
                     null
                 ).0;
-                userPostsRels.delete(caller, postId);
+                artistPostsRels.delete(caller, postId);
                 _removeAllLikes(postId);
                 _removeAllSuggestions(postId);
                 _removeAllComments(postId);
@@ -252,6 +398,149 @@ actor {
 
     };
 
+//Gallery
+    public shared({caller}) func createGallery (galleryData : GalleryCreate) : async Result.Result<(), Error> {
+
+        if(Principal.isAnonymous(caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        let g = Source.Source();
+        let galleryId = Text.concat("G", UUID.toText(await g.new()));
+
+        let gallery : Gallery = {
+            id = galleryId;
+            artistPpal = galleryData.artistPpal;
+            name = galleryData.name;
+            description = galleryData.description;
+            galleryBanner = galleryData.galleryBanner;
+            createdAt = Time.now();
+        };
+
+        let (newArtistGalleries, existing) = Trie.put(
+            galleries,
+            Utils.keyText(galleryId),
+            Text.equal,
+            gallery
+        );
+
+        switch(existing) {
+            case null {
+                galleries := newArtistGalleries;
+                artistGalleriesRels.put(caller, galleryId);
+                #ok(());
+            };
+            case (? v) {
+                await createGallery(galleryData);
+            };
+        };
+    };
+
+    public query({caller}) func readGalleriesByArtist (artistPpal : Principal) : async Result.Result<[(Text, Gallery)], Error> {
+        
+        if(Principal.isAnonymous(caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        let artistGalleriesIds : [Text] = artistGalleriesRels.get0(artistPpal);
+        let artistGalleries : Buffer.Buffer<(Text, Gallery)> = Buffer.Buffer(1);
+
+        label af for (id in artistGalleriesIds.vals()) {
+            let result : ?Gallery = Trie.find(
+                galleries,
+                Utils.keyText(id),
+                Text.equal
+            );
+
+            switch (result){
+                case null {
+                    continue af;
+                };
+                case (? ag) {
+                    artistGalleries.add((id, ag)); 
+                };
+            };
+        };
+        #ok(artistGalleries.toArray());
+    };
+    //cambio ac'a en params, se quit'o artGalleryId
+    public shared({caller}) func updateArtGallery (galleryData : GalleryUpdate) : async Result.Result<(), Error> {
+        
+        if(Principal.isAnonymous(caller) or Principal.notEqual(artistGalleriesRels.get1(galleryData.id)[0], caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        let result = Trie.find(
+            galleries,
+            Utils.keyText(galleryData.id),
+            Text.equal 
+        );
+
+        switch(result) {
+            case null {
+                #err(#NonExistentItem)
+            };
+            case (? v) {
+                if(Principal.equal(v.artistPpal, caller)) {
+                    let gallery : Gallery = {
+                        id = galleryData.id;
+                        artistPpal = v.artistPpal;
+                        name = galleryData.name;
+                        description = galleryData.description;
+                        galleryBanner = galleryData.galleryBanner;
+                        createdAt = v.createdAt;
+                    };
+
+                    galleries := Trie.replace(
+                        galleries,       
+                        Utils.keyText(gallery.id), 
+                        Text.equal,
+                        ?gallery
+                    ).0;
+                    if(artistGalleriesRels.get1(galleryData.id).size() != 0) {
+                        artistGalleriesRels.delete(caller, galleryData.id);
+                        artistGalleriesRels.put(caller, galleryData.id);
+                    };
+                    return #ok(());
+                };
+                return #err(#NotAuthorized);
+            };
+        };
+    };
+
+    public shared({caller}) func removeGallery (galleryId : Text) : async Result.Result<(), Error> {
+        
+        if(Principal.isAnonymous(caller) or Principal.notEqual(artistGalleriesRels.get1(galleryId)[0], caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        let result = Trie.find(
+            galleries,
+            Utils.keyText(galleryId),
+            Text.equal 
+        );
+
+        switch(result) {
+            case null {
+                #err(#NonExistentItem)
+            };
+            case (? v) {
+                if(Principal.equal(v.artistPpal, caller)) {
+                    galleries := Trie.replace(
+                        galleries,
+                        Utils.keyText(galleryId),
+                        Text.equal,
+                        null
+                    ).0;
+                    if(artistGalleriesRels.get1(galleryId).size() != 0) {
+                        artistGalleriesRels.delete(caller, galleryId);
+                    };
+                    return #ok(());
+                };
+                return #err(#NotAuthorized);
+            };
+        };
+    };
 
 //Likes
     public shared({caller}) func addLike (targetId : Text) : async Result.Result<(), Error> {
@@ -302,7 +591,7 @@ actor {
             return #err(#NotAuthorized);
         };
 
-        follows.put(artistPpal, caller);
+        followsRels.put(artistPpal, caller);
         #ok(());
     };
 
@@ -312,7 +601,7 @@ actor {
             return #err(#NotAuthorized);
         };
 
-        #ok(readArtistFollows.get0(artistPpal).size());
+        #ok(followsRels.get0(artistPpal).size());
 
     };
 
@@ -322,7 +611,7 @@ actor {
             return #err(#NotAuthorized);
         };
 
-        #ok(readArtistFollows.get1(artistPpal).size());
+        #ok(followsRels.get1(artistPpal).size());
 
     };
 
@@ -332,7 +621,7 @@ actor {
             return #err(#NotAuthorized);
         };
 
-        follows.delete(artistPpal, caller);
+        followsRels.delete(artistPpal, caller);
         #ok(());
 
     };
@@ -371,7 +660,7 @@ actor {
         };
     };
 
-    public query({caller}) func readPostSuggestions (postId : Text) : async Result.Result<[(Text, Suggestion)], Error> {
+    public query({caller}) func readPostSuggestions (postId : Text) : async Result.Result<[(Principal, Text, Text, Suggestion)], Error> {
 
         if(Principal.isAnonymous(caller)) {
             return #err(#NotAuthorized);
@@ -444,7 +733,7 @@ actor {
         #ok(());
     };
 
-    public query({caller}) func readComments (targetId : Text) : async Result.Result<[(Text, Comment)], Error> {
+    public query({caller}) func readComments (targetId : Text) : async Result.Result<[(Principal, Text, Text, Comment)], Error> {
 
         let targetComments = Trie.find(
             comments, 
@@ -505,6 +794,15 @@ actor {
 
     };
 
+//Username rels
+    public shared({caller}) func relPrincipalWithUsername (artistP : Principal, username : Text) : async Result.Result<(), Error> {
+
+        if(not Utils.isAuthorized(caller, authorized)) {
+            return #err(#NotAuthorized);
+        };
+        
+        #ok(principalUsernameRels.put(artistP, username));
+    };
 
 //-----------End Public
 
@@ -535,7 +833,7 @@ actor {
 
 //Suggestions
 
-    private func _readPostSuggestions(postId : Text) : [(Text, Suggestion)] {
+    private func _readPostSuggestions(postId : Text) : [(Principal, Text, Text, Suggestion)] {
 
         let suggestionIds = postSuggestionsRels.get0(postId);
 
@@ -554,7 +852,24 @@ actor {
         );
 
         let fSsIter : Iter.Iter<(Text, Suggestion)> = Trie.iter(filteredSuggestions);
-        Iter.toArray(fSsIter);
+        let fSsBuff : Buffer.Buffer<(Principal, Text, Text, Suggestion)> = Buffer.Buffer(0);
+        
+        for (c in fSsIter) {
+            let artistP = artistSuggestionsRels.get1(c.0)[0];
+            let artistU = principalUsernameRels.get0(artistP)[0];
+
+            fSsBuff.add(
+                (
+                    artistP,
+                    artistU,
+                    c.0,
+                    c.1
+                )
+            );
+
+        };
+
+        fSsBuff.toArray();
     };
 
     private func _removeAllSuggestions (postId : Text) {
@@ -600,9 +915,23 @@ actor {
         artistCommentsRels.put(artistPpal, commentId);
     };
 
-    private func _readComments (cs : Trie.Trie<Text, Comment>) : [(Text, Comment)] {
+    private func _readComments (cs : Trie.Trie<Text, Comment>) : [(Principal, Text, Text, Comment)] {
         let fCsIter : Iter.Iter<(Text, Comment)> = Trie.iter(cs);
-        Iter.toArray(fCsIter);
+        let fCsBuff : Buffer.Buffer<(Principal, Text, Text, Comment)> = Buffer.Buffer(0);
+        for (c in fCsIter) {
+            let artistP = artistCommentsRels.get1(c.0)[0];
+            let artistU = principalUsernameRels.get0(artistP)[0];
+
+            fCsBuff.add(
+                (
+                    artistP,
+                    artistU,
+                    c.0,
+                    c.1
+                )
+            );
+        };
+        fCsBuff.toArray();
     };
 
     //Recursively remove all comments and nested hierarchical comments.
@@ -785,11 +1114,33 @@ actor {
 
 //-----------End Private
 
+//---------------Admin
+    public query({caller}) func authorizedArr() : async Result.Result<[Principal], Error> {
+
+        if(not Utils.isAuthorized(caller, authorized)) {
+            return #err(#NotAuthorized);
+        };
+
+        return #ok(authorized);
+    };
+
+    public query({caller}) func authorize(principal : Principal) : async Result.Result<(), Error> {
+
+        if(not Utils.isAuthorized(caller, authorized)) {
+            return #err(#NotAuthorized);
+        };
+
+        authorized := Array.append(authorized, [principal]);
+        #ok(());
+    };
+//---------------End Admin
+
+
 //---------------For internal test only
 
     public query({caller}) func readFirstPostId (artistPpal : Principal) : async Text {
 
-        userPostsRels.get0(artistPpal)[0];
+        artistPostsRels.get0(artistPpal)[0];
     };
 
     public query func commentsSize() :async Nat {

@@ -24,9 +24,32 @@ module {
     };
     public type PostRead = {
         post: Post;
-        comments: ?[(Text, Comment)];
-        suggestions: ?[(Text, Suggestion)];
+        comments: ?[(Principal, Text, Text, Comment)];
+        suggestions: ?[(Principal, Text, Text, Suggestion)];
         likeQty: Nat;
+    };
+
+    public type Gallery = {
+        id: Text;
+        artistPpal: Principal;
+        name: Text;
+        description: Text;
+        galleryBanner: ?Text; 
+        createdAt: Int;
+    };
+
+    public type GalleryCreate = {
+        artistPpal: Principal;
+        name: Text;
+        description: Text;
+        galleryBanner: ?Text; 
+    };
+
+    public type GalleryUpdate = {
+        id: Text;
+        name: Text;
+        description: Text;
+        galleryBanner: ?Text; 
     };
 
     public type CommentBasics = {

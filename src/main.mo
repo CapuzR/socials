@@ -149,7 +149,7 @@ actor Self {
             };
         };
     };
-    //AJACHO
+    
     public query({caller}) func readPostById (postId : Text) : async Result.Result<PostRead, Error> {
 
         if(Principal.isAnonymous(caller)) {

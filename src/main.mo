@@ -75,6 +75,75 @@ actor Self {
     let artistGalleriesRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), artistGalleries);
     
 //---------------Public
+//Artist
+
+    public query({caller}) func readArtistProfile (username : Text) : async Result.Result<ArtistRead, Error> {
+
+        if(Principal.isAnonymous(caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        let principalIds : [Principal] = _getPrincipalByUsername(username);
+    
+        if(principalIds.size() == 0) {
+            return #err(#NonExistentItem);
+        };
+
+        let artistPpal : Principal = principalIds[0];
+
+        let postsIds = artistPostsRels.get0(artistPpal);
+        var postsBuff : Buffer.Buffer<PostRead> = Buffer.Buffer(0);
+        label l for( pId in postsIds.vals() ){
+            let targetPost = Trie.find(
+                posts, 
+                Utils.keyText(pId),
+                Text.equal
+            );
+
+            switch(targetPost) {
+                case null {
+                    continue l;
+                };
+                case (? post) {
+                    
+                    let targetComments = Trie.find(
+                        comments, 
+                        Utils.keyText(pId),
+                        Text.equal
+                    );
+
+                    switch(targetComments) {
+                        case null {
+                            postsBuff.add({
+                                post = post;
+                                comments = null;
+                                suggestions = ?_readPostSuggestions(pId);
+                                likesQty = _readLikesQtyByTarget(pId);
+                            });
+                            continue l;
+                        };
+                        case (? cs) {
+                            postsBuff.add({
+                                post = post;
+                                comments= ?_readComments(cs);
+                                suggestions= ?_readPostSuggestions(pId);
+                                likesQty= _readLikesQtyByTarget(pId);
+                            });
+                            continue l;
+                        };
+                    };
+                };
+            };
+        };
+        #ok({
+            postsRead = postsBuff.toArray(); 
+            followersQty = _readFollowersQty(artistPpal);
+            followsQty = _readFollowsQty(artistPpal);
+            postsQty = _readPostsQty(artistPpal);
+            galleriesQty = _readGalleriesQty(artistPpal);
+        });
+    };
+
 //Post
     public shared({caller}) func createPost (postData : PostCreate) : async Result.Result<(), Error> {
 
@@ -190,73 +259,6 @@ actor Self {
             };
         };
 
-    };
-
-    public query({caller}) func readArtistProfile (username : Text) : async Result.Result<ArtistRead, Error> {
-
-        if(Principal.isAnonymous(caller)) {
-            return #err(#NotAuthorized);
-        };
-
-        let principalIds : [Principal] = _getPrincipalByUsername(username);
-    
-        if(principalIds.size() == 0) {
-            return #err(#NonExistentItem);
-        };
-
-        let artistPpal : Principal = principalIds[0];
-
-        let postsIds = artistPostsRels.get0(artistPpal);
-        var postsBuff : Buffer.Buffer<PostRead> = Buffer.Buffer(0);
-        label l for( pId in postsIds.vals() ){
-            let targetPost = Trie.find(
-                posts, 
-                Utils.keyText(pId),
-                Text.equal
-            );
-
-            switch(targetPost) {
-                case null {
-                    continue l;
-                };
-                case (? post) {
-                    
-                    let targetComments = Trie.find(
-                        comments, 
-                        Utils.keyText(pId),
-                        Text.equal
-                    );
-
-                    switch(targetComments) {
-                        case null {
-                            postsBuff.add({
-                                post = post;
-                                comments = null;
-                                suggestions = ?_readPostSuggestions(pId);
-                                likesQty = _readLikesQtyByTarget(pId);
-                            });
-                            continue l;
-                        };
-                        case (? cs) {
-                            postsBuff.add({
-                                post = post;
-                                comments= ?_readComments(cs);
-                                suggestions= ?_readPostSuggestions(pId);
-                                likesQty= _readLikesQtyByTarget(pId);
-                            });
-                            continue l;
-                        };
-                    };
-                };
-            };
-        };
-        #ok({
-            postsRead = postsBuff.toArray(); 
-            followersQty = _readFollowersQty(artistPpal);
-            followsQty = _readFollowsQty(artistPpal);
-            postsQty = _readPostsQty(artistPpal);
-            galleriesQty = _readGalleriesQty(artistPpal);
-        });
     };
 
     //ExploreFeed
@@ -533,11 +535,19 @@ actor Self {
         };
     };
 
-    public query({caller}) func readGalleriesByArtist (artistPpal : Principal) : async Result.Result<[(Text, Gallery)], Error> {
+    public query({caller}) func readGalleriesByArtist (username : Text) : async Result.Result<[(Text, Gallery)], Error> {
         
         if(Principal.isAnonymous(caller)) {
             return #err(#NotAuthorized);
         };
+
+        let principalIds : [Principal] = _getPrincipalByUsername(username);
+    
+        if(principalIds.size() == 0) {
+            return #err(#NonExistentItem);
+        };
+
+        let artistPpal : Principal = principalIds[0];
 
         let artistGalleriesIds : [Text] = artistGalleriesRels.get0(artistPpal);
         let artistGalleries : Buffer.Buffer<(Text, Gallery)> = Buffer.Buffer(1);
@@ -663,11 +673,20 @@ actor Self {
 
     };
 
-    public query({caller}) func readLikesQtyByArtist (artistPpal : Principal) : async Result.Result<Nat, Error> {
+    public query({caller}) func readLikesQtyByArtist (username : Text) : async Result.Result<Nat, Error> {
 
         if(Principal.isAnonymous(caller)) {
             return #err(#NotAuthorized);
         };
+
+        let principalIds : [Principal] = _getPrincipalByUsername(username);
+    
+        if(principalIds.size() == 0) {
+            return #err(#NonExistentItem);
+        };
+
+        let artistPpal : Principal = principalIds[0];
+
 
         #ok(likesRels.get1(artistPpal).size());
 
@@ -685,41 +704,73 @@ actor Self {
     };
     
 //Follows
-    public shared({caller}) func addFollow (artistPpal : Principal) : async Result.Result<(), Error> {
+    public shared({caller}) func addFollow (username : Text) : async Result.Result<(), Error> {
 
         if(Principal.isAnonymous(caller)) {
             return #err(#NotAuthorized);
         };
+
+        let principalIds : [Principal] = _getPrincipalByUsername(username);
+    
+        if(principalIds.size() == 0) {
+            return #err(#NonExistentItem);
+        };
+
+        let artistPpal : Principal = principalIds[0];
 
         followsRels.put(artistPpal, caller);
         #ok(());
     };
 
-    public query({caller}) func readArtistFollowersQty (artistPpal : Principal) : async Result.Result<Nat, Error> {
+    public query({caller}) func readArtistFollowersQty (username : Text) : async Result.Result<Nat, Error> {
 
         if(Principal.isAnonymous(caller)) {
             return #err(#NotAuthorized);
         };
+
+        let principalIds : [Principal] = _getPrincipalByUsername(username);
+    
+        if(principalIds.size() == 0) {
+            return #err(#NonExistentItem);
+        };
+
+        let artistPpal : Principal = principalIds[0];
 
         #ok(followsRels.get0(artistPpal).size());
 
     };
 
-    public query({caller}) func readArtistFollowsQty (artistPpal : Principal) : async Result.Result<Nat, Error> {
+    public query({caller}) func readArtistFollowsQty (username : Text) : async Result.Result<Nat, Error> {
 
         if(Principal.isAnonymous(caller)) {
             return #err(#NotAuthorized);
         };
+
+        let principalIds : [Principal] = _getPrincipalByUsername(username);
+    
+        if(principalIds.size() == 0) {
+            return #err(#NonExistentItem);
+        };
+
+        let artistPpal : Principal = principalIds[0];
 
         #ok(followsRels.get1(artistPpal).size());
 
     };
 
-    public shared({caller}) func removeFollow (artistPpal : Principal) : async Result.Result<(), Error> {
+    public shared({caller}) func removeFollow (username : Text) : async Result.Result<(), Error> {
 
         if(Principal.isAnonymous(caller)) {
             return #err(#NotAuthorized);
         };
+
+        let principalIds : [Principal] = _getPrincipalByUsername(username);
+    
+        if(principalIds.size() == 0) {
+            return #err(#NonExistentItem);
+        };
+
+        let artistPpal : Principal = principalIds[0];
 
         followsRels.delete(artistPpal, caller);
         #ok(());
@@ -781,11 +832,19 @@ actor Self {
 
     };
 
-    public query({caller}) func readSuggestionsQtyByArtist (artistPpal : Principal) : async Result.Result<Nat, Error> {
+    public query({caller}) func readSuggestionsQtyByArtist (username : Text) : async Result.Result<Nat, Error> {
 
         if(Principal.isAnonymous(caller)) {
             return #err(#NotAuthorized);
         };
+
+        let principalIds : [Principal] = _getPrincipalByUsername(username);
+    
+        if(principalIds.size() == 0) {
+            return #err(#NonExistentItem);
+        };
+
+        let artistPpal : Principal = principalIds[0];
 
         #ok(artistSuggestionsRels.get0(artistPpal).size());
 
@@ -939,6 +998,7 @@ actor Self {
     private func _readPostsQty(artistPpal : Principal) : Nat {
         artistPostsRels.get0(artistPpal).size();
     };
+
 //Follows
 
     private func _readFollowersQty(artistPpal : Principal) : Nat {
@@ -1245,6 +1305,7 @@ actor Self {
             };
         };
     };
+
 //-----------End For internal tests only.
 
 };

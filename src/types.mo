@@ -7,6 +7,7 @@ module {
     };
     public type PostCreate = {
         postBasics: PostBasics;
+        postImage: Blob;
     };
     public type PostUpdate = {
         postId: Text;

@@ -1,7 +1,7 @@
 {
   "canisters": {
     "socials": {
-      "main": "src/service.mo",
+      "main": "src/main.mo",
       "type": "motoko"
     }
   },

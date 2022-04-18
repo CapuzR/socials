@@ -194,11 +194,19 @@ actor Self {
 
     };
 
-    public query({caller}) func readPostsByArtist (artistPpal : Principal) : async Result.Result<[PostRead], Error> {
+    public query({caller}) func readArtistProfile (username : Text) : async Result.Result<[PostRead], Error> {
 
         if(Principal.isAnonymous(caller)) {
             return #err(#NotAuthorized);
         };
+
+        let principalIds : [Principal] = _getPrincipalByUsername(username);
+    
+        if(principalIds.size() == 0) {
+            return #err(#NonExistentItem);
+        };
+
+        let artistPpal : Principal = principalIds[0];
 
         let postsIds = artistPostsRels.get0(artistPpal);
         var postsBuff : Buffer.Buffer<PostRead> = Buffer.Buffer(0);
@@ -211,7 +219,6 @@ actor Self {
 
             switch(targetPost) {
                 case null {
-                    // #err(#Unknown("Post doesn't exist."));
                     continue l;
                 };
                 case (? post) {
@@ -301,11 +308,19 @@ actor Self {
     };
 
     //PersonalFeed
-    public query({caller}) func readFollowsPostsByCreation (artistPpal : Principal, qty : Int, page : Int) : async Result.Result<[PostRead], Error> {
+    public query({caller}) func readFollowsPostsByCreation (username : Text, qty : Int, page : Int) : async Result.Result<[PostRead], Error> {
 
         if(Principal.isAnonymous(caller)) {
             return #err(#NotAuthorized);
         };
+
+        let principalIds : [Principal] = _getPrincipalByUsername(username);
+    
+        if(principalIds.size() == 0) {
+            return #err(#NonExistentItem);
+        };
+
+        let artistPpal : Principal = principalIds[0];
 
         let artistPpalArr : [Principal] = followsRels.get1(artistPpal);
         let pBuff : Buffer.Buffer<PostRead> = Buffer.Buffer(0);
@@ -706,6 +721,7 @@ actor Self {
         #ok(());
 
     };
+
 //Suggestions
     public shared({caller}) func addSuggestion (postId : Text, suggestion : SuggestionCreate) : async Result.Result<(), Error> {
 
@@ -1141,81 +1157,9 @@ actor Self {
 
     };
 
-    //Estos v1 son validando nuevamente la existencia de los Trie pero es redundante.
-    //Remove coment content node (Layer 2) v1
-    // private func _removeCommentL2v1(targetId : Text, commentId : Text) {
-
-    //     let filteredComments = Trie.find(
-    //         comments,
-    //         Utils.keyText(targetId),
-    //         Text.equal
-    //     );
-
-    //     switch(filteredComments) {
-    //         case null {
-    //             #err(#NotFound);
-    //         };
-    //         case (? fCs) {
-    //             let comment = Trie.find(
-    //                 fCs,
-    //                 Utils.keyText(commentId),
-    //                 Text.equal
-    //             );
-
-    //             switch(comment) {
-    //                 case null {
-    //                     #err(#NotFound);
-    //                 };
-    //                 case (? c) {
-    //                     fCs := Trie.replace(
-    //                         fCs,
-    //                         Utils.keyText(commentId),
-    //                         Text.equal,
-    //                         null
-    //                     ).0;
-
-    //                     comments := Trie.replace(
-    //                         comments,
-    //                         Utils.keyText(targetId),
-    //                         Text.equal,
-    //                         fCs
-    //                     ).0;
-    //                     _removeAllLikes(commentId);
-    //                     _removeAllSuggestions(commentId);
-    //                     _removeArtistCommentsRels
-    //                     #ok(());
-    //                 };
-    //             };
-    //         };
-    //     };
-
-    // };
-    //Remove empty coment node (Layer 1) v1
-    // private func _removeCommentL1v1(targetId : Text) {
-
-    //     let comment = Trie.find(
-    //         comments,
-    //         Utils.keyText(targetId),
-    //         Text.equal
-    //     );
-
-    //     switch(comment) {
-    //         case null {
-    //             #err(#NotFound);
-    //         };
-    //         case (? fCs) {
-    //             comments := Trie.replace(
-    //                 comments,
-    //                 Utils.keyText(targetId),
-    //                 Text.equal,
-    //                 null
-    //             ).0;
-
-    //         };
-    //     };
-
-    // };
-
+    private func _getPrincipalByUsername (username : Text) : [Principal] {
+        principalUsernameRels.get1(username);
+    };
 //-----------End Private
 
 //---------------Admin

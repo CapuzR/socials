@@ -194,6 +194,60 @@ actor Self {
 
     };
 
+    public query({caller}) func readPostsByPpal (artistPpal : Principal) : async Result.Result<[PostRead], Error> {
+
+        if(Principal.isAnonymous(caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        let postsIds = artistPostsRels.get0(artistPpal);
+        var postsBuff : Buffer.Buffer<PostRead> = Buffer.Buffer(0);
+        label l for( pId in postsIds.vals() ){
+            let targetPost = Trie.find(
+                posts, 
+                Utils.keyText(pId),
+                Text.equal
+            );
+
+            switch(targetPost) {
+                case null {
+                    // #err(#Unknown("Post doesn't exist."));
+                    continue l;
+                };
+                case (? post) {
+                    
+                    let targetComments = Trie.find(
+                        comments, 
+                        Utils.keyText(pId),
+                        Text.equal
+                    );
+
+                    switch(targetComments) {
+                        case null {
+                            postsBuff.add({
+                                post = post;
+                                comments = null;
+                                suggestions = ?_readPostSuggestions(pId);
+                                likeQty = _readLikesQtyByTarget(pId);
+                            });
+                            continue l;
+                        };
+                        case (? cs) {
+                            postsBuff.add({
+                                post = post;
+                                comments= ?_readComments(cs);
+                                suggestions= ?_readPostSuggestions(pId);
+                                likeQty= _readLikesQtyByTarget(pId);
+                            });
+                            continue l;
+                        };
+                    };
+                };
+            };
+        };
+        #ok(postsBuff.toArray());
+    };
+
     public query({caller}) func readArtistProfile (username : Text) : async Result.Result<[PostRead], Error> {
 
         if(Principal.isAnonymous(caller)) {

@@ -11,7 +11,7 @@ import Int "mo:base/Int";
 
 module {
 
-    type ArtistRead = Types.ArtistRead;
+    type PostRead = Types.PostRead;
 
     public func isInDetails (details : [(Text, Types.DetailValue)], v : Text) : Bool {
         for( d in details.vals() ) {
@@ -51,9 +51,9 @@ module {
         false;
     };
 
-    public func comparePR(x : ArtistRead, y : ArtistRead) : { #less; #equal; #greater } {
-        if (Int.less(x.post.postDetails.createdAt, y.post.postDetails.createdAt)) { #less }
-        else if (Int.equal(x.post.postDetails.createdAt, y.post.postDetails.createdAt)) { #equal }
+    public func comparePR(x : PostRead, y : PostRead) : { #less; #equal; #greater } {
+        if (Int.less(x.post.createdAt, y.post.createdAt)) { #less }
+        else if (Int.equal(x.post.createdAt, y.post.createdAt)) { #equal }
         else { #greater }
     };
 }

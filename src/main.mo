@@ -136,8 +136,17 @@ actor Self {
                 };
             };
         };
+        // if (postsBuff.toArray().size() == 0) {
+        //     return #ok({
+        //         postsRead = null;
+        //         followersQty = _readFollowersQty(artistPpal);
+        //         followsQty = _readFollowsQty(artistPpal);
+        //         postsQty = _readPostsQty(artistPpal);
+        //         galleriesQty = _readGalleriesQty(artistPpal);
+        //     });
+        // };
         #ok({
-            postsRead = postsBuff.toArray(); 
+            postsRead = ?postsBuff.toArray(); 
             followersQty = _readFollowersQty(artistPpal);
             followsQty = _readFollowsQty(artistPpal);
             postsQty = _readPostsQty(artistPpal);

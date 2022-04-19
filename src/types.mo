@@ -38,7 +38,7 @@ module {
     };
 
     public type ArtistRead = {
-        postsRead: [PostRead];
+        postsRead: ?[PostRead];
         followersQty: Nat;
         followsQty: Nat;
         postsQty: Nat;

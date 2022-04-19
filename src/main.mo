@@ -156,7 +156,7 @@ actor Self {
         let postId = Text.concat("P", UUID.toText(await g.new()));
 
         let fullPostBasics = {
-            thumbnail = Text.concat(Principal.toText(assetCanisterIds[0]), Text.concat("raw.ic0.app/", postId));
+            asset = Text.concat(Principal.toText(assetCanisterIds[0]), Text.concat("raw.ic0.app/", postId));
             title = postData.postBasics.title;
             description = postData.postBasics.description;
             artType = postData.postBasics.artType;
@@ -1280,7 +1280,7 @@ actor Self {
         };
     };
     
-//ArtistCommentsRel
+//Artist
 
     private func _removeArtistCommentsRels (targetId : Text) {
 

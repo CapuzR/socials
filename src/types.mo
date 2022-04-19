@@ -14,7 +14,7 @@ module {
         postBasics: PostBasics;
     };
     public type PostBasics = {
-        thumbnail : Text;
+        asset : Text;
         title: Text;
         description: Text;
         artType: Text;

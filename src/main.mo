@@ -22,6 +22,7 @@ actor Self {
     type Post = Types.Post;
     type PostRead = Types.PostRead;
     type ArtistRead = Types.ArtistRead;
+    type Follow = Types.Follow;
     type GalleryCreate = Types.GalleryCreate;
     type GalleryUpdate = Types.GalleryUpdate;
     type Gallery = Types.Gallery;
@@ -740,6 +741,55 @@ actor Self {
 
     };
 
+    public query({caller}) func readArtistFollowers (username : Text) : async Result.Result<[Follow], Error> {
+
+        if(Principal.isAnonymous(caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        let principalIds : [Principal] = _getPrincipalByUsername(username);
+    
+        if(principalIds.size() == 0) {
+            return #err(#NonExistentItem);
+        };
+
+        let followers : Buffer.Buffer<Follow> = Buffer.Buffer(principalIds.size());
+
+        for(artistPpal in principalIds.vals()) {
+            followers.add({
+                followedByCaller = _followedBy(artistPpal, caller);
+                artistUsername = principalUsernameRels.get0(artistPpal)[0];
+                artistPrincipal = artistPpal;
+            });
+        };
+        #ok(followers.toArray());
+    };
+
+    public query({caller}) func readArtistFollows (username : Text) : async Result.Result<[Follow], Error> {
+
+        if(Principal.isAnonymous(caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        let principalIds : [Principal] = _getPrincipalByUsername(username);
+    
+        if(principalIds.size() == 0) {
+            return #err(#NonExistentItem);
+        };
+
+        let follows : Buffer.Buffer<Follow> = Buffer.Buffer(principalIds.size());
+
+        for(artistPpal in principalIds.vals()) {
+            follows.add({
+                followedByCaller = _followedBy(artistPpal, caller);
+                artistUsername = principalUsernameRels.get0(artistPpal)[0];
+                artistPrincipal = artistPpal;
+            });
+        };
+        #ok(follows.toArray());
+
+    };
+
     public query({caller}) func readArtistFollowsQty (username : Text) : async Result.Result<Nat, Error> {
 
         if(Principal.isAnonymous(caller)) {
@@ -954,7 +1004,7 @@ actor Self {
 
     };
 
-//Username rels
+//Username
     public shared({caller}) func relPrincipalWithUsername (artistP : Principal, username : Text) : async Result.Result<(), Error> {
 
         if(not Utils.isAuthorized(caller, authorized)) {
@@ -1007,6 +1057,10 @@ actor Self {
 
     private func _readFollowsQty(artistPpal : Principal) : Nat {
         followsRels.get1(artistPpal).size();
+    };
+
+    private func _followedBy (artistPrincipal : Principal, userPrincipal : Principal) : Bool {
+        followsRels.isMember(artistPrincipal, userPrincipal);
     };
 
 //Galleries

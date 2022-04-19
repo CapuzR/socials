@@ -23,11 +23,18 @@ module {
         tools: ?[(Text, Text)];
         details: [(Text, DetailValue)];
     };
+
     public type PostRead = {
         post: Post;
         comments: ?[(Principal, Text, Text, Comment)];
         suggestions: ?[(Principal, Text, Text, Suggestion)];
         likesQty: Int;
+    };
+
+    public type Follow = {
+        followedByCaller: Bool;
+        artistUsername: Text;
+        artistPrincipal: Principal;
     };
 
     public type ArtistRead = {

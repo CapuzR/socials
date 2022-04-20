@@ -167,7 +167,7 @@ actor Self {
         let postId = Text.concat("P", UUID.toText(await g.new()));
 
         let fullPostBasics = {
-            asset = Text.concat(Principal.toText(assetCanisterIds[0]), Text.concat("raw.ic0.app/", postId));
+            asset = Text.concat(Principal.toText(assetCanisterIds[0]), Text.concat(".raw.ic0.app/", postId));
             title = postData.postBasics.title;
             description = postData.postBasics.description;
             artType = postData.postBasics.artType;
@@ -1058,7 +1058,7 @@ actor Self {
         });
 
     };
-    
+
     private func _deleteImage(name : Text) : async () {
 
         let key = Text.concat(name, ".jpeg");

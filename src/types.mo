@@ -43,6 +43,7 @@ module {
         followsQty: Nat;
         postsQty: Nat;
         galleriesQty: Nat;
+        followedByCaller: Bool;
     };
 
     public type Gallery = {

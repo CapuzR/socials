@@ -143,6 +143,7 @@ actor Self {
                 followsQty = _readFollowsQty(artistPpal);
                 postsQty = _readPostsQty(artistPpal);
                 galleriesQty = _readGalleriesQty(artistPpal);
+                followedByCaller =  _followedBy(artistPpal, caller);
             });
         };
         #ok({
@@ -151,6 +152,7 @@ actor Self {
             followsQty = _readFollowsQty(artistPpal);
             postsQty = _readPostsQty(artistPpal);
             galleriesQty = _readGalleriesQty(artistPpal);
+            followedByCaller =  _followedBy(artistPpal, caller);
         });
     };
 
@@ -1033,24 +1035,26 @@ actor Self {
 //---------------Private
 //Posts
 
-    private func _storeImage(key : Text, postImage : Blob) : async () {
+    private func _storeImage(name : Text, postImage : Blob) : async () {
+
+        let key = Text.concat(name, ".jpeg");
         
         let aCActor = actor(Principal.toText(assetCanisterIds[0])): actor { 
-            store : shared (
-                key : Text, 
-                content_type : Text, 
-                content_encoding : Text, 
-                content : Blob,
-                sha256 : ?Blob
-            ) -> async ()
+            store : shared ({
+                key : Text;
+                content_type : Text;
+                content_encoding : Text;
+                content : Blob;
+                sha256 : ?Blob;
+            }) -> async ()
         };
-        await aCActor.store(
-            key,
-            "image/jpeg",
-            "identity",
-            postImage,
-            null
-        );
+        await aCActor.store({
+                key = key;
+                content_type = "image/jpeg";
+                content_encoding = "identity";
+                content = postImage;
+                sha256 = null;
+        });
 
     };
 

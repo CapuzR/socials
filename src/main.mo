@@ -497,6 +497,7 @@ actor Self {
                     Text.equal,
                     null
                 ).0;
+                await _deleteImage(postId);
                 artistPostsRels.delete(caller, postId);
                 _removeAllLikes(postId);
                 _removeAllSuggestions(postId);
@@ -1054,6 +1055,21 @@ actor Self {
                 content_encoding = "identity";
                 content = postImage;
                 sha256 = null;
+        });
+
+    };
+    
+    private func _deleteImage(name : Text) : async () {
+
+        let key = Text.concat(name, ".jpeg");
+        
+        let aCActor = actor(Principal.toText(assetCanisterIds[0])): actor { 
+            delete_asset : shared ({
+                key : Text;
+            }) -> async ()
+        };
+        await aCActor.delete_asset({
+                key = key;
         });
 
     };

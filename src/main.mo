@@ -571,7 +571,7 @@ actor Self {
         };
     };
 
-    public query({caller}) func readGalleriesByArtist (username : Text) : async Result.Result<[(Text, Gallery)], Error> {
+    public query({caller}) func readGalleriesByArtist (username : Text) : async Result.Result<[Gallery], Error> {
         
         if(Principal.isAnonymous(caller)) {
             return #err(#NotAuthorized);
@@ -586,7 +586,7 @@ actor Self {
         let artistPpal : Principal = principalIds[0];
 
         let artistGalleriesIds : [Text] = artistGalleriesRels.get0(artistPpal);
-        let artistGalleries : Buffer.Buffer<(Text, Gallery)> = Buffer.Buffer(1);
+        let artistGalleries : Buffer.Buffer<Gallery> = Buffer.Buffer(1);
 
         label af for (id in artistGalleriesIds.vals()) {
             let result : ?Gallery = Trie.find(
@@ -600,7 +600,7 @@ actor Self {
                     continue af;
                 };
                 case (? ag) {
-                    artistGalleries.add((id, ag)); 
+                    artistGalleries.add(ag); 
                 };
             };
         };

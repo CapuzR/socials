@@ -1,9 +1,10 @@
-import Trie "mo:base/Trie";
-import List "mo:base/List";
-import Iter "mo:base/Iter";
+import Buffer "mo:base/Buffer";
 import Hash "mo:base/Hash";
-import Text "mo:base/Text";
+import Iter "mo:base/Iter";
+import List "mo:base/List";
 import Prelude "mo:base/Prelude";
+import Text "mo:base/Text";
+import Trie "mo:base/Trie";
 
 /// Binary relation representation.
 ///
@@ -147,6 +148,24 @@ module {
       hash = rel.hash ;
       equal = rel.equal ;
     }
+  };
+
+  public func getAllRelated<X,Y,Z>( rel : Rel<X, Y> ) : [(X, Y)] {
+    
+    let iterX : Iter.Iter<(X,Trie.Trie<Y,()>)> = Trie.iter(rel.forw);
+    let buff : Buffer.Buffer<(X, Y)> = Buffer.Buffer(1);
+    
+    for (xV in iterX) {
+      let iterY : Iter.Iter<(Y,())> = Trie.iter(xV.1);
+      for (yV in iterY) {
+        buff.add(
+          xV.0,
+          yV.0
+        );
+      };
+    };
+
+    buff.toArray();
   };
 
   func invert<X, Y>(rel : Trie.Trie2D<X, Y, ()>) : Trie.Trie2D<Y, X, ()> {

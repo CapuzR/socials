@@ -43,6 +43,11 @@ module {
     public func delete(x : X, y : Y) {
       rel := Rel.delete(rel, (x, y))
     };
+
+    public func getAll() : [(X, Y)] {
+      Rel.getAllRelated(rel);
+    };
+
     public func isMember(x : X, y : Y) : Bool {
       Rel.isMember(rel, x, y)
     };

@@ -2,107 +2,108 @@
 module {
 
     public type Post = {
-        postBasics: PostBasics;
-        createdAt: Int;
+        postBasics : PostBasics;
+        createdAt : Int;
     };
     public type PostCreate = {
-        postBasics: PostBasics;
-        postImage: Blob;
+        postBasics : PostBasics;
+        postImage : Blob;
     };
     public type PostUpdate = {
-        postId: Text;
-        postBasics: PostBasics;
+        postId : Text;
+        postBasics : PostBasics;
     };
     public type PostBasics = {
         asset : Text;
-        title: Text;
-        description: Text;
-        artType: Text;
-        tags: [Text];
-        artCategory: Text;
-        tools: ?[(Text, Text)];
-        details: [(Text, DetailValue)];
+        title : Text;
+        description : Text;
+        artType : Text;
+        tags : [Text];
+        artCategory : Text;
+        tools : ?[(Text, Text)];
+        details : [(Text, DetailValue)];
     };
 
     public type PostRead = {
-        post: Post;
-        comments: ?[(Principal, Text, Text, Comment)];
-        suggestions: ?[(Principal, Text, Text, Suggestion)];
-        likesQty: Int;
+        postId : Text;
+        post : Post;
+        comments : ?[(Principal, Text, Text, Comment)];
+        suggestions : ?[(Principal, Text, Text, Suggestion)];
+        likesQty : Int;
     };
 
     public type Follow = {
-        followedByCaller: Bool;
-        artistUsername: Text;
-        artistPrincipal: Principal;
+        followedByCaller : Bool;
+        artistUsername : Text;
+        artistPrincipal : Principal;
     };
 
     public type ArtistRead = {
-        postsRead: ?[PostRead];
-        followersQty: Nat;
-        followsQty: Nat;
-        postsQty: Nat;
-        galleriesQty: Nat;
-        followedByCaller: Bool;
+        postsRead : ?[PostRead];
+        followersQty : Nat;
+        followsQty : Nat;
+        postsQty : Nat;
+        galleriesQty : Nat;
+        followedByCaller : Bool;
     };
 
     public type Gallery = {
-        id: Text;
-        artistPpal: Principal;
-        name: Text;
-        description: Text;
-        galleryBanner: ?Text; 
-        createdAt: Int;
+        id : Text;
+        artistPpal : Principal;
+        name : Text;
+        description : Text;
+        galleryBanner : ?Text; 
+        createdAt : Int;
     };
 
     public type GalleryCreate = {
-        artistPpal: Principal;
-        name: Text;
-        description: Text;
-        galleryBanner: ?Text; 
+        artistPpal : Principal;
+        name : Text;
+        description : Text;
+        galleryBanner : ?Text; 
     };
 
     public type GalleryUpdate = {
-        id: Text;
-        name: Text;
-        description: Text;
-        galleryBanner: ?Text; 
+        id : Text;
+        name : Text;
+        description : Text;
+        galleryBanner : ?Text; 
     };
 
     public type CommentBasics = {
-        content: Text;
-        category: ?Text;
-        details: ?[(Text, DetailValue)];
+        content : Text;
+        category : ?Text;
+        details : ?[(Text, DetailValue)];
     };
 
     public type Comment = {
-        commentBasics: CommentBasics;
-        createdAt: Int;
+        commentBasics : CommentBasics;
+        createdAt : Int;
     };
 
     public type AllComments = {
-        comment: Comment;
-        comments: AllComments;
+        comment : Comment;
+        comments : AllComments;
     };
 
     public type CommentCreate = {
-        commentBasics: CommentBasics;
+        commentBasics : CommentBasics;
     };
     public type CommentUpdate = {
-        commentId: Text;
-        commentBasics: CommentBasics;
+        commentId : Text;
+        commentBasics : CommentBasics;
     };
     public type Suggestion = {
         //Add suggestion category.
-        comment: CommentCreate;
-        createdAt: Int;
+        comment : CommentCreate;
+        createdAt : Int;
     };
     public type SuggestionCreate = {
-        comment: CommentCreate;
+        comment : CommentCreate;
     };
     public type SuggestionUpdate = {
-        suggestionId: Text;
-        postBasics: PostBasics;
+        suggestionId : Text;
+        postBasics : PostBasics;
     };
     public type DetailValue = {
         #I64 : Int64;

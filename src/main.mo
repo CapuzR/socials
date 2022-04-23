@@ -12,6 +12,7 @@ import Rels "./Rels/Rels";
 import Source "mo:uuid/async/SourceV4";
 import UUID "mo:uuid/UUID";
 import Utils "./utils";
+import Debug "mo:base/Debug";
 
 actor Self {
 
@@ -44,6 +45,10 @@ actor Self {
     
     stable var galleries : Trie.Trie<Text, Gallery> = Trie.empty();//postId,Gallery
 
+    stable var suggestions : Trie.Trie<Text, Suggestion> = Trie.empty();//suggestionId,Suggestion
+
+    stable var comments : Trie.Trie2D<Text, Text, Comment> = Trie.empty(); //postId|commentId|suggestionId,(commentId|suggestionCommentId,comment)
+
     stable var likes : [(Text, Principal)] = [];//postId|commentId|suggestionCommentId,artistPrincipal
     let likesRels = Rels.Rels<Text, Principal>((Text.hash, Principal.hash), (Text.equal, Principal.equal), likes);
 
@@ -52,28 +57,24 @@ actor Self {
     
     stable var principalUsername : [(Principal, Text)] = [];//artistPrincipal,followerPrincipal
     let principalUsernameRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), principalUsername);
-    
-    stable var postSuggestions : [(Text,Text)] = [];//postId,suggestionCommentId
-    let postSuggestionsRels = Rels.Rels<Text, Text>((Text.hash, Text.hash), (Text.equal, Text.equal), postSuggestions);
+
+    stable var postSuggestionsRelEntries : [(Text,Text)] = [];//postId,suggestionCommentId
+    let postSuggestionsRels = Rels.Rels<Text, Text>((Text.hash, Text.hash), (Text.equal, Text.equal), postSuggestionsRelEntries);
     
     stable var artistSuggestions : [(Principal,Text)] = [];//artistPrincipal,suggestionId
     let artistSuggestionsRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), artistSuggestions);
-    
-    stable var suggestions : Trie.Trie<Text, Suggestion> = Trie.empty();//suggestionId,Suggestion
 
-    stable var comments : Trie.Trie2D<Text, Text, Comment> = Trie.empty(); //postId|commentId|suggestionId,(commentId|suggestionCommentId,comment)
-
-    stable var artistPosts : [(Principal, Text)] = []; //artistPrincipal,postId
-    let artistPostsRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), artistPosts); //artistPrincipal,postId
+    stable var artistPostsRelEntries : [(Principal, Text)] = []; //artistPrincipal,postId
+    let artistPostsRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), artistPostsRelEntries); //artistPrincipal,postId
 
     stable var artistComments : [(Principal, Text)] = [];//artistPrincipal,commentId
     let artistCommentsRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), artistComments);
 
-    stable var galleryPost : [(Text,Text)] = [];
-    let galleryPostRels = Rels.Rels<Text, Text>((Text.hash, Text.hash), (Text.equal, Text.equal), galleryPost);
+    stable var galleryPostRelEntries : [(Text,Text)] = [];
+    let galleryPostRels = Rels.Rels<Text, Text>((Text.hash, Text.hash), (Text.equal, Text.equal), galleryPostRelEntries);
     
-    stable var artistGalleries : [(Principal,Text)] = [];
-    let artistGalleriesRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), artistGalleries);
+    stable var artistGalleriesRelEntries : [(Principal,Text)] = [];
+    let artistGalleriesRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), artistGalleriesRelEntries);
     
 //---------------Public
 //Artist
@@ -116,6 +117,7 @@ actor Self {
                     switch(targetComments) {
                         case null {
                             postsBuff.add({
+                                postId = pId;
                                 post = post;
                                 comments = null;
                                 suggestions = ?_readPostSuggestions(pId);
@@ -125,6 +127,7 @@ actor Self {
                         };
                         case (? cs) {
                             postsBuff.add({
+                                postId = pId;
                                 post = post;
                                 comments= ?_readComments(cs);
                                 suggestions= ?_readPostSuggestions(pId);
@@ -155,6 +158,22 @@ actor Self {
             followedByCaller =  _followedBy(artistPpal, caller);
         });
     };
+
+    // public query({caller}) func removeArtist () : async Result.Result<(), Error> {
+
+    //     if(Principal.isAnonymous(caller) or Principal.notEqual(artistPostsRels.get1(postId)[0], caller)) {
+    //         return #err(#NotAuthorized);
+    //     };
+
+    //     let postIds : [Text] = artistPostsRels.get0(caller);
+
+    //     for (pId in postIds) {
+
+    //     };
+
+    //     _remove
+
+    // };
 
 //Post
     public shared({caller}) func createPost (postData : PostCreate) : async Result.Result<(), Error> {
@@ -192,7 +211,6 @@ actor Self {
             case null {
                 posts := newPosts;
                 
-                //AQUI
                 await _storeImage(postId, postData.postImage);
 
                 artistPostsRels.put(caller, postId);
@@ -261,6 +279,7 @@ actor Self {
                     };
                     case (? cs) {
                         #ok({
+                            postId = postId;
                             post = post;                                
                             comments = ?_readComments(cs);
                             suggestions = ?_readPostSuggestions(postId);
@@ -304,6 +323,7 @@ actor Self {
             switch(targetComments) {
                 case null {
                     pBuff.add({
+                        postId = p.0;
                         post = p.1;
                         comments = null;
                         suggestions = ?_readPostSuggestions(p.0);
@@ -313,6 +333,7 @@ actor Self {
                 };
                 case (? cs) {
                     pBuff.add({
+                        postId = p.0;
                         post = p.1;
                         comments = ?_readComments(cs);
                         suggestions = ?_readPostSuggestions(p.0);
@@ -385,6 +406,7 @@ actor Self {
                     switch(targetComments) {
                         case null {
                             pBuff.add({
+                                postId = pId;
                                 post = post;
                                 comments = null;
                                 suggestions = ?_readPostSuggestions(pId);
@@ -394,6 +416,7 @@ actor Self {
                         };
                         case (? cs) {
                             pBuff.add({
+                                postId = pId;
                                 post = post;
                                 comments = ?_readComments(cs);
                                 suggestions = ?_readPostSuggestions(pId);
@@ -1332,6 +1355,66 @@ actor Self {
         principalUsernameRels.get1(username);
     };
 //-----------End Private
+
+//---------------Upgrades
+    private func getAllLikesRels () : [(Text, Principal)] {
+        likesRels.getAll();
+    };
+    private func getAllFollowsRels () : [(Principal, Principal)] {
+        followsRels.getAll();
+    };
+    private func getAllPrincipalUsernameRels () : [(Principal, Text)] {
+        principalUsernameRels.getAll();
+    };
+    private func getAllPostSuggestionsRels () : [(Text, Text)] {
+        postSuggestionsRels.getAll();
+    };
+    private func getAllArtistSuggestionsRels () : [(Principal, Text)] {
+        artistSuggestionsRels.getAll();
+    };
+    private func getAllArtistPostsRels () : [(Principal, Text)] {
+        artistPostsRels.getAll();
+    };
+    private func getAllArtistCommentsRels () : [(Principal, Text)] {
+        artistCommentsRels.getAll();
+    };
+    private func getAllGalleryPostRels () : [(Text, Text)] {
+        galleryPostRels.getAll();
+    };
+    private func getAllArtistGalleriesRels () : [(Principal, Text)] {
+        artistGalleriesRels.getAll();
+    };
+
+
+    system func preupgrade() {
+
+        likes := getAllLikesRels();
+        follows := getAllFollowsRels();
+        principalUsername := getAllPrincipalUsernameRels();
+        postSuggestionsRelEntries := getAllPostSuggestionsRels();
+        artistSuggestions := getAllArtistSuggestionsRels();
+        artistPostsRelEntries := getAllArtistPostsRels();
+        artistComments := getAllArtistCommentsRels();
+        galleryPostRelEntries := getAllGalleryPostRels();
+        artistGalleriesRelEntries := getAllArtistGalleriesRels();
+
+    };
+
+    system func postupgrade() {
+        
+        likes := [];
+        follows := [];
+        principalUsername := [];
+        postSuggestionsRelEntries := [];
+        artistSuggestions := [];
+        artistPostsRelEntries := [];
+        artistComments := [];
+        galleryPostRelEntries := [];
+        artistGalleriesRelEntries := [];
+
+    };
+
+//-----------End upgrades
 
 //---------------Admin
     public query({caller}) func authorizedArr() : async Result.Result<[Principal], Error> {

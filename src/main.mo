@@ -275,7 +275,13 @@ actor Self {
 
                 switch(targetComments) {
                     case null {
-                        #err(#Unknown("Target doesn't have comments."));
+                        #ok({
+                            postId = postId;
+                            post = post;                                
+                            comments = null;
+                            suggestions = ?_readPostSuggestions(postId);
+                            likesQty = _readLikesQtyByTarget(postId);
+                        });
                     };
                     case (? cs) {
                         #ok({
@@ -421,6 +427,74 @@ actor Self {
                                 comments = ?_readComments(cs);
                                 suggestions = ?_readPostSuggestions(pId);
                                 likesQty = _readLikesQtyByTarget(pId);
+                            });
+                        };
+                    };
+                };
+            };
+        };
+        #ok(Array.sort(pBuff.toArray(), Utils.comparePR));
+    };
+
+    public query({caller}) func readPostsByGallery (galleryId : Text, qty : Int, page : Int) : async Result.Result<[PostRead], Error> {
+
+        if(Principal.isAnonymous(caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        let postsIds : [Text] = galleryPostRels.get0(galleryId);
+        Debug.print(debug_show(postsIds[0]));
+        // let pIter : Iter.Iter<(Text, Post)> = Trie.iter(posts);
+        let pBuff : Buffer.Buffer<PostRead> = Buffer.Buffer(0);
+        var pCount : Int = 0;
+
+        label l for (postId in postsIds.vals()) {
+            
+            if ( pCount < (qty*page - qty) ) {
+                pCount += 1;
+                continue l;
+            };
+            if ( pCount == qty*page ) {
+                break l;
+            };
+            pCount += 1;
+
+            let targetPost = Trie.find(
+                posts,
+                Utils.keyText(postId),
+                Text.equal
+            );
+
+            switch(targetPost) {
+                case null {
+                    continue l;
+                };
+                case (? post) {
+
+                    let targetComments = Trie.find(
+                        comments,
+                        Utils.keyText(postId),
+                        Text.equal
+                    );
+
+                    switch(targetComments) {
+                        case null {
+                            pBuff.add({
+                                postId = postId;
+                                post = post;
+                                comments = null;
+                                suggestions = ?_readPostSuggestions(postId);
+                                likesQty = _readLikesQtyByTarget(postId);
+                            });
+                            continue l;
+                        };
+                        case (? cs) {
+                            pBuff.add({
+                                postId = postId;
+                                post = post;
+                                comments = ?_readComments(cs);
+                                suggestions = ?_readPostSuggestions(postId);
+                                likesQty = _readLikesQtyByTarget(postId);
                             });
                         };
                     };

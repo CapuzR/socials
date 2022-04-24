@@ -122,6 +122,7 @@ actor Self {
                                 comments = null;
                                 suggestions = ?_readPostSuggestions(pId);
                                 likesQty = _readLikesQtyByTarget(pId);
+                                likedByCaller = _isPostLikedByUser(pId, caller);
                             });
                             continue l;
                         };
@@ -132,6 +133,7 @@ actor Self {
                                 comments= ?_readComments(cs);
                                 suggestions= ?_readPostSuggestions(pId);
                                 likesQty= _readLikesQtyByTarget(pId);
+                                likedByCaller = _isPostLikedByUser(pId, caller);
                             });
                             continue l;
                         };
@@ -159,21 +161,53 @@ actor Self {
         });
     };
 
-    // public query({caller}) func removeArtist () : async Result.Result<(), Error> {
+    public shared({caller}) func removeArtist () : async Result.Result<(), Error> {
 
-    //     if(Principal.isAnonymous(caller) or Principal.notEqual(artistPostsRels.get1(postId)[0], caller)) {
-    //         return #err(#NotAuthorized);
-    //     };
+        if(Principal.isAnonymous(caller)) {
+            return #err(#NotAuthorized);
+        };
+        if(principalUsernameRels.get0(caller).size() == 0) {
+            return #err(#NonExistentItem);
+        };
 
-    //     let postIds : [Text] = artistPostsRels.get0(caller);
+        let postIds : [Text] = artistPostsRels.get0(caller);
 
-    //     for (pId in postIds) {
+        label l for (postId in postIds.vals()) {
 
-    //     };
+            let result = Trie.find(
+                posts,
+                Utils.keyText(postId),
+                Text.equal
+            );
 
-    //     _remove
-
-    // };
+            switch(result) {
+                case null {
+                    continue l;
+                };
+                case (? v) {
+                    posts := Trie.replace(
+                        posts,
+                        Utils.keyText(postId),
+                        Text.equal,
+                        null
+                    ).0;
+                    // await _deleteImage(postId);
+                    artistPostsRels.delete(caller, postId);
+                    _removeAllLikes(postId);
+                    _removeAllSuggestions(postId);
+                    let waste = _removeAllComments(postId);
+                    for(gI in galleryPostRels.get1(postId).vals()){
+                        galleryPostRels.delete(gI, postId);
+                    };
+                    continue l;
+                };
+            };
+        };
+        _removeAllFollows(caller);
+        _removeArtistGalleries(caller);
+        principalUsernameRels.delete(caller, principalUsernameRels.get0(caller)[0]);
+        #ok(());
+    };
 
 //Post
     public shared({caller}) func createPost (postData : PostCreate) : async Result.Result<(), Error> {
@@ -211,7 +245,7 @@ actor Self {
             case null {
                 posts := newPosts;
                 
-                await _storeImage(postId, postData.postImage);
+                // await _storeImage(postId, postData.postImage);
 
                 artistPostsRels.put(caller, postId);
                 label l for(d in postData.postBasics.details.vals()) {
@@ -281,6 +315,7 @@ actor Self {
                             comments = null;
                             suggestions = ?_readPostSuggestions(postId);
                             likesQty = _readLikesQtyByTarget(postId);
+                            likedByCaller = _isPostLikedByUser(postId, caller);
                         });
                     };
                     case (? cs) {
@@ -290,6 +325,7 @@ actor Self {
                             comments = ?_readComments(cs);
                             suggestions = ?_readPostSuggestions(postId);
                             likesQty = _readLikesQtyByTarget(postId);
+                            likedByCaller = _isPostLikedByUser(postId, caller);
                         });
                     };
                 };
@@ -334,6 +370,7 @@ actor Self {
                         comments = null;
                         suggestions = ?_readPostSuggestions(p.0);
                         likesQty = _readLikesQtyByTarget(p.0);
+                        likedByCaller = _isPostLikedByUser(p.0, caller);
                     });
                     continue l;
                 };
@@ -344,6 +381,7 @@ actor Self {
                         comments = ?_readComments(cs);
                         suggestions = ?_readPostSuggestions(p.0);
                         likesQty = _readLikesQtyByTarget(p.0);
+                        likedByCaller = _isPostLikedByUser(p.0, caller);
                     });
                 };
             };
@@ -417,6 +455,7 @@ actor Self {
                                 comments = null;
                                 suggestions = ?_readPostSuggestions(pId);
                                 likesQty = _readLikesQtyByTarget(pId);
+                                likedByCaller = _isPostLikedByUser(pId, caller);
                             });
                             continue l;
                         };
@@ -427,6 +466,7 @@ actor Self {
                                 comments = ?_readComments(cs);
                                 suggestions = ?_readPostSuggestions(pId);
                                 likesQty = _readLikesQtyByTarget(pId);
+                                likedByCaller = _isPostLikedByUser(pId, caller);
                             });
                         };
                     };
@@ -443,8 +483,6 @@ actor Self {
         };
 
         let postsIds : [Text] = galleryPostRels.get0(galleryId);
-        Debug.print(debug_show(postsIds[0]));
-        // let pIter : Iter.Iter<(Text, Post)> = Trie.iter(posts);
         let pBuff : Buffer.Buffer<PostRead> = Buffer.Buffer(0);
         var pCount : Int = 0;
 
@@ -485,6 +523,7 @@ actor Self {
                                 comments = null;
                                 suggestions = ?_readPostSuggestions(postId);
                                 likesQty = _readLikesQtyByTarget(postId);
+                                likedByCaller = _isPostLikedByUser(postId, caller);
                             });
                             continue l;
                         };
@@ -495,6 +534,7 @@ actor Self {
                                 comments = ?_readComments(cs);
                                 suggestions = ?_readPostSuggestions(postId);
                                 likesQty = _readLikesQtyByTarget(postId);
+                                likedByCaller = _isPostLikedByUser(postId, caller);
                             });
                         };
                     };
@@ -538,6 +578,7 @@ actor Self {
                 for(gI in galleryPostRels.get1(postData.postId).vals()){
                     galleryPostRels.delete(gI, postData.postId);
                 };
+
                 label l for(d in postData.postBasics.details.vals()) {
                     if(d.0 == "galleryId") {
                         switch(d.1){
@@ -1189,10 +1230,67 @@ actor Self {
         followsRels.isMember(artistPrincipal, userPrincipal);
     };
 
+    private func _removeAllFollows (userPrincipal : Principal) {
+        let followings = followsRels.get1(userPrincipal);
+        let followers = followsRels.get0(userPrincipal);
+        for(fings in followings.vals()) {
+            _removeFollows(fings, userPrincipal);
+        };
+
+        for(fers in followers.vals()) {
+            _removeFollows(userPrincipal, fers);
+        };
+    };
+
+    private func _removeFollows (artistPrincipal : Principal, userPrincipal : Principal) {
+        followsRels.delete(artistPrincipal, userPrincipal);
+    };
+
 //Galleries
 
     private func _readGalleriesQty(artistPpal : Principal) : Nat {
         artistGalleriesRels.get0(artistPpal).size();
+    };
+    private func _removeArtistGalleries(artistPrincipal : Principal) {
+
+        let artistGalleriesIds = artistGalleriesRels.get0(artistPrincipal);
+
+        for (aGId in artistGalleriesIds.vals()) {
+            let dummy = _removeGallery(aGId, artistPrincipal);
+        };
+
+    };
+
+    private func _removeGallery(galleryId: Text, artistPpal : Principal) : Result.Result<(), Error> {
+
+        let result = Trie.find(
+            galleries,
+            Utils.keyText(galleryId),
+            Text.equal 
+        );
+
+        switch(result) {
+            case null {
+                #err(#NonExistentItem);
+            };
+            case (? v) {
+                if(Principal.equal(v.artistPpal, artistPpal)) {
+                    galleries := Trie.replace(
+                        galleries,
+                        Utils.keyText(galleryId),
+                        Text.equal,
+                        null
+                    ).0;
+                    if(artistGalleriesRels.get1(galleryId).size() != 0) {
+                        artistGalleriesRels.delete(artistPpal, galleryId);
+                        for(postId in galleryPostRels.get0(galleryId).vals()){
+                            galleryPostRels.delete(galleryId, postId);
+                        };
+                    };
+                };
+                #ok(());
+            };
+        };
     };
 
 //Likes
@@ -1217,6 +1315,10 @@ actor Self {
 
         likesRels.delete(targetId, artistPpal);
 
+    };
+
+    private func _isPostLikedByUser (postId : Text, userPrincipal : Principal) : Bool {
+        likesRels.isMember(postId, userPrincipal);
     };
 
 //Suggestions

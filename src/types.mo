@@ -7,7 +7,7 @@ module {
     };
     public type PostCreate = {
         postBasics : PostBasics;
-        postImage : Blob;
+        // postImage : Blob;
     };
     public type PostUpdate = {
         postId : Text;
@@ -30,6 +30,7 @@ module {
         comments : ?[(Principal, Text, Text, Comment)];
         suggestions : ?[(Principal, Text, Text, Suggestion)];
         likesQty : Int;
+        likedByCaller : Bool;
     };
 
     public type Follow = {

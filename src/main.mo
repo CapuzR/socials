@@ -117,6 +117,7 @@ actor Self {
                     switch(targetComments) {
                         case null {
                             postsBuff.add({
+                                artistUsername = principalUsernameRels.get0(artistPostsRels.get1(pId)[0])[0];
                                 postId = pId;
                                 post = post;
                                 comments = null;
@@ -128,6 +129,7 @@ actor Self {
                         };
                         case (? cs) {
                             postsBuff.add({
+                                artistUsername = principalUsernameRels.get0(artistPostsRels.get1(pId)[0])[0];
                                 postId = pId;
                                 post = post;
                                 comments= ?_readComments(cs);
@@ -310,6 +312,7 @@ actor Self {
                 switch(targetComments) {
                     case null {
                         #ok({
+                            artistUsername = principalUsernameRels.get0(artistPostsRels.get1(postId)[0])[0];
                             postId = postId;
                             post = post;                                
                             comments = null;
@@ -320,6 +323,7 @@ actor Self {
                     };
                     case (? cs) {
                         #ok({
+                            artistUsername = principalUsernameRels.get0(artistPostsRels.get1(postId)[0])[0];
                             postId = postId;
                             post = post;                                
                             comments = ?_readComments(cs);
@@ -365,6 +369,7 @@ actor Self {
             switch(targetComments) {
                 case null {
                     pBuff.add({
+                        artistUsername = principalUsernameRels.get0(artistPostsRels.get1(p.0)[0])[0];
                         postId = p.0;
                         post = p.1;
                         comments = null;
@@ -376,6 +381,7 @@ actor Self {
                 };
                 case (? cs) {
                     pBuff.add({
+                        artistUsername = principalUsernameRels.get0(artistPostsRels.get1(p.0)[0])[0];
                         postId = p.0;
                         post = p.1;
                         comments = ?_readComments(cs);
@@ -450,6 +456,7 @@ actor Self {
                     switch(targetComments) {
                         case null {
                             pBuff.add({
+                                artistUsername = principalUsernameRels.get0(artistPostsRels.get1(pId)[0])[0];
                                 postId = pId;
                                 post = post;
                                 comments = null;
@@ -461,6 +468,7 @@ actor Self {
                         };
                         case (? cs) {
                             pBuff.add({
+                                artistUsername = principalUsernameRels.get0(artistPostsRels.get1(pId)[0])[0];
                                 postId = pId;
                                 post = post;
                                 comments = ?_readComments(cs);
@@ -518,6 +526,7 @@ actor Self {
                     switch(targetComments) {
                         case null {
                             pBuff.add({
+                                artistUsername = principalUsernameRels.get0(artistPostsRels.get1(postId)[0])[0];
                                 postId = postId;
                                 post = post;
                                 comments = null;
@@ -529,6 +538,7 @@ actor Self {
                         };
                         case (? cs) {
                             pBuff.add({
+                                artistUsername = principalUsernameRels.get0(artistPostsRels.get1(postId)[0])[0];
                                 postId = postId;
                                 post = post;
                                 comments = ?_readComments(cs);

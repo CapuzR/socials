@@ -25,6 +25,7 @@ module {
     };
 
     public type PostRead = {
+        artistUsername : Text;
         postId : Text;
         post : Post;
         comments : ?[(Principal, Text, Text, Comment)];

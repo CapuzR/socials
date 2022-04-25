@@ -245,7 +245,7 @@ actor Self {
             case null {
                 posts := newPosts;
                 
-                // await _storeImage(postId, postData.postImage);
+                await _storeImage(postId, postData.postImage);
 
                 artistPostsRels.put(caller, postId);
                 label l for(d in postData.postBasics.details.vals()) {
@@ -748,7 +748,6 @@ actor Self {
                         galleryBanner = galleryData.galleryBanner;
                         createdAt = v.createdAt;
                     };
-
                     galleries := Trie.replace(
                         galleries,       
                         Utils.keyText(gallery.id), 
@@ -897,7 +896,7 @@ actor Self {
             return #err(#NotAuthorized);
         };
 
-        let principalIds : [Principal] = _getPrincipalByUsername(username);
+        let principalIds : [Principal] = followsRels.get0(username);
     
         if(principalIds.size() == 0) {
             return #err(#NonExistentItem);
@@ -921,7 +920,7 @@ actor Self {
             return #err(#NotAuthorized);
         };
 
-        let principalIds : [Principal] = _getPrincipalByUsername(username);
+        let principalIds : [Principal] = followsRels.get1(username);
     
         if(principalIds.size() == 0) {
             return #err(#NonExistentItem);
@@ -1174,8 +1173,7 @@ actor Self {
 //---------------Private
 //Posts
 
-    private func _storeImage(name : Text, postImage : Blob) : async () {
-
+    private func _storeImage(name : Text, asset : Blob) : async () {
         let key = Text.concat(name, ".jpeg");
         
         let aCActor = actor(Principal.toText(assetCanisterIds[0])): actor { 
@@ -1191,7 +1189,7 @@ actor Self {
                 key = key;
                 content_type = "image/jpeg";
                 content_encoding = "identity";
-                content = postImage;
+                content = asset;
                 sha256 = null;
         });
 
@@ -1251,6 +1249,7 @@ actor Self {
     private func _readGalleriesQty(artistPpal : Principal) : Nat {
         artistGalleriesRels.get0(artistPpal).size();
     };
+
     private func _removeArtistGalleries(artistPrincipal : Principal) {
 
         let artistGalleriesIds = artistGalleriesRels.get0(artistPrincipal);

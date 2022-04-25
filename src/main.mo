@@ -896,15 +896,17 @@ actor Self {
             return #err(#NotAuthorized);
         };
 
-        let principalIds : [Principal] = followsRels.get0(username);
+        let principalIds : [Principal] = _getPrincipalByUsername(username);
     
         if(principalIds.size() == 0) {
             return #err(#NonExistentItem);
         };
 
-        let followers : Buffer.Buffer<Follow> = Buffer.Buffer(principalIds.size());
+        let followersIds : [Principal] = followsRels.get0(principalIds[0]);
 
-        for(artistPpal in principalIds.vals()) {
+        let followers : Buffer.Buffer<Follow> = Buffer.Buffer(followersIds.size());
+
+        for(artistPpal in followersIds.vals()) {
             followers.add({
                 followedByCaller = _followedBy(artistPpal, caller);
                 artistUsername = principalUsernameRels.get0(artistPpal)[0];
@@ -920,15 +922,16 @@ actor Self {
             return #err(#NotAuthorized);
         };
 
-        let principalIds : [Principal] = followsRels.get1(username);
+        let principalIds : [Principal] = _getPrincipalByUsername(username);
     
         if(principalIds.size() == 0) {
             return #err(#NonExistentItem);
         };
 
-        let follows : Buffer.Buffer<Follow> = Buffer.Buffer(principalIds.size());
+        let followsIds : [Principal] = followsRels.get1(principalIds[0]);
+        let follows : Buffer.Buffer<Follow> = Buffer.Buffer(followsIds.size());
 
-        for(artistPpal in principalIds.vals()) {
+        for(artistPpal in followsIds.vals()) {
             follows.add({
                 followedByCaller = _followedBy(artistPpal, caller);
                 artistUsername = principalUsernameRels.get0(artistPpal)[0];

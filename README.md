@@ -18,8 +18,8 @@ dfx canister call socials createAssetCan
 
 ### 1. Assign Username to your principal.
 
-export USERNAME="capuzr"
 ```bash
+export USERNAME="capuzr"
 dfx canister call socials relPrincipalWithUsername '(principal "'$(dfx identity get-principal)'", "'${USERNAME}'")'
 ```
 
@@ -44,14 +44,27 @@ dfx canister call socials createPost '(record {
 })'
 ```
 
-
 ### Delete a post.
 
 ```bash
 export POST_ID=$(dfx canister call socials readFirstPostId '(principal "'$(dfx identity get-principal)'")')
-
 dfx canister call socials removePost '('${POST_ID}')'
+```
 
+### Follow.
+
+```bash
+dfx identity new tester1
+export TESTER1_PPAL=$(dfx --identity tester1 identity get-principal)
+export TESTER1_USERNAME="ggranado"
+dfx --identity tester1 canister call socials relPrincipalWithUsername '(principal "'${TESTER1_PPAL}'", "'${TESTER1_USERNAME}'")'
+dfx --identity tester1 canister call socials addFollow '("'${USERNAME}'")'
+```
+
+### Check posts by date not only my follows (except mine)
+
+```bash
+dfx --identity tester1 canister call socials readPostsByCreation '(1,1)'
 ```
 
 

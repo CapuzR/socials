@@ -351,9 +351,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
         let pBuff : Buffer.Buffer<PostRead> = Buffer.Buffer(0);
         var pCount : Int = 0;
         
-        if(Iter.size(pIter) != 0) {
         label l for (p in pIter) {
-
             if ( pCount < (qty*page - qty) ) {
                 pCount += 1;
                 continue l;
@@ -369,10 +367,14 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                 Text.equal
             );
 
+            let artistPrincipal : Principal = artistPostsRels.get1(p.0)[0];
+
+            if(Principal.equal(caller, artistPrincipal)) { continue l; };
+            
             switch(targetComments) {
                 case null {
                     pBuff.add({
-                        artistUsername = principalUsernameRels.get0(artistPostsRels.get1(p.0)[0])[0];
+                        artistUsername = principalUsernameRels.get0(artistPrincipal)[0];
                         postId = p.0;
                         post = p.1;
                         comments = null;
@@ -383,6 +385,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                     continue l;
                 };
                 case (? cs) {
+            Debug.print(debug_show("pasó?2"));
                     pBuff.add({
                         artistUsername = principalUsernameRels.get0(artistPostsRels.get1(p.0)[0])[0];
                         postId = p.0;
@@ -396,22 +399,23 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
             };
         };
         #ok(Array.sort(pBuff.toArray(), Utils.comparePR));
-        } else {
-            return #err(#NonExistentItem);
-        };
     };
 
     //PersonalFeed
     public query({caller}) func readFollowsPostsByCreation (username : Text, qty : Int, page : Int) : async Result.Result<[PostRead], Error> {
-
+    
         if(Principal.isAnonymous(caller)) {
             return #err(#NotAuthorized);
         };
 
         let principalIds : [Principal] = _getPrincipalByUsername(username);
-    
+
         if(principalIds.size() == 0) {
             return #err(#NonExistentItem);
+        };
+
+        if(Principal.notEqual(caller, principalIds[0])) {
+            return #err(#NotAuthorized);
         };
 
         let artistPpal : Principal = principalIds[0];
@@ -421,7 +425,8 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
         let pIdBuff : Buffer.Buffer<Text> = Buffer.Buffer(0);
         var pCount : Int = 0;
         
-        for (a in artistPpalArr.vals()) {
+        label l for (a in artistPpalArr.vals()) {
+            if(Principal.equal(caller, a)) { continue l; };
             let pArr : [Text] = artistPostsRels.get0(a);
 
             for (p in pArr.vals()) {
@@ -429,13 +434,13 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
             };
         };
 
-        label l for (pId in pIdBuff.vals()) {
+        label m for (pId in pIdBuff.vals()) {
             if ( pCount < (qty*page - qty) ) {
                 pCount += 1;
-                continue l;
+                continue m;
             };
             if ( pCount == qty*page ) {
-                break l;
+                break m;
             };
             pCount += 1;
 
@@ -448,7 +453,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
 
             switch(targetPost) {
                 case null {
-                    continue l;
+                    continue m;
                 };
                 case (? post) {
 
@@ -469,7 +474,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                                 likesQty = _readLikesQtyByTarget(pId);
                                 likedByCaller = _isPostLikedByUser(pId, caller);
                             });
-                            continue l;
+                            continue m;
                         };
                         case (? cs) {
                             pBuff.add({
@@ -1174,7 +1179,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
 //Username
     public shared({caller}) func relPrincipalWithUsername (artistP : Principal, username : Text) : async Result.Result<(), Error> {
 
-        if(not Utils.isAuthorized(caller, authorized) and Principal.equal(artistP, caller)) {
+        if( Principal.isAnonymous(caller) or Principal.notEqual(artistP, caller)) {
             return #err(#NotAuthorized);
         };
 

@@ -1,6 +1,10 @@
 
 module {
 
+    public type InitOptions = {
+        authorized : [Principal];
+    };
+
     public type Post = {
         postBasics : PostBasics;
         createdAt : Int;

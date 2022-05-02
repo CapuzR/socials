@@ -46,14 +46,16 @@ module {
         };
 
         for (a in authorized.vals()) {
-            if (a == p) return true;
+            if (Principal.equal(a, p)) {
+                return true;
+            };
         };
         false;
     };
 
     public func comparePR(x : PostRead, y : PostRead) : { #less; #equal; #greater } {
-        if (Int.less(x.post.createdAt, y.post.createdAt)) { #less }
-        else if (Int.equal(x.post.createdAt, y.post.createdAt)) { #equal }
-        else { #greater }
+        if (Int.less(x.post.createdAt, y.post.createdAt)) { return #less }
+        else if (Int.equal(x.post.createdAt, y.post.createdAt)) { return #equal }
+        else { return #greater }
     };
 }

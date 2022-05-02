@@ -14,7 +14,9 @@ import UUID "mo:uuid/UUID";
 import Utils "./utils";
 import Debug "mo:base/Debug";
 
-actor Self {
+import assetC "./actorClasses/asset/assetCanister";
+
+shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
 
 //Types
     type Error = Types.Error;
@@ -37,9 +39,9 @@ actor Self {
 
 //State
     //Reemplazar por el assetCanister correspondiente
-    stable var assetCanisterIds : [Principal] = [Principal.fromText("rno2w-sqaaa-aaaaa-aaacq-cai")]; 
+    stable var assetCanisterIds : [Principal] = [];
 
-    stable var authorized : [Principal] = [Principal.fromText("exr4a-6lhtv-ftrv4-hf5dc-co5x7-2fgz7-mlswm-q3bjo-hehbc-lmmw4-tqe")];
+    stable var authorized : [Principal] = initOptions.authorized;
 
     stable var posts : Trie.Trie<Text, Post> = Trie.empty();//postId,Post
     
@@ -55,7 +57,7 @@ actor Self {
     stable var follows : [(Principal, Principal)] = [];//artistPrincipal,followerPrincipal
     let followsRels = Rels.Rels<Principal, Principal>((Principal.hash, Principal.hash), (Principal.equal, Principal.equal), follows);
     
-    stable var principalUsername : [(Principal, Text)] = [];//artistPrincipal,followerPrincipal
+    stable var principalUsername : [(Principal, Text)] = [];//artistPrincipal,artistUsername
     let principalUsernameRels = Rels.Rels<Principal, Text>((Principal.hash, Text.hash), (Principal.equal, Text.equal), principalUsername);
 
     stable var postSuggestionsRelEntries : [(Text,Text)] = [];//postId,suggestionCommentId
@@ -349,6 +351,7 @@ actor Self {
         let pBuff : Buffer.Buffer<PostRead> = Buffer.Buffer(0);
         var pCount : Int = 0;
         
+        if(Iter.size(pIter) != 0) {
         label l for (p in pIter) {
 
             if ( pCount < (qty*page - qty) ) {
@@ -392,8 +395,10 @@ actor Self {
                 };
             };
         };
-
         #ok(Array.sort(pBuff.toArray(), Utils.comparePR));
+        } else {
+            return #err(#NonExistentItem);
+        };
     };
 
     //PersonalFeed
@@ -1169,9 +1174,10 @@ actor Self {
 //Username
     public shared({caller}) func relPrincipalWithUsername (artistP : Principal, username : Text) : async Result.Result<(), Error> {
 
-        if(not Utils.isAuthorized(caller, authorized)) {
+        if(not Utils.isAuthorized(caller, authorized) and Principal.equal(artistP, caller)) {
             return #err(#NotAuthorized);
         };
+
         if(principalUsernameRels.get0(artistP).size() != 0){
             for(u in principalUsernameRels.get0(artistP).vals()) {
                 principalUsernameRels.delete(artistP, u);
@@ -1605,6 +1611,27 @@ actor Self {
 //-----------End upgrades
 
 //---------------Admin
+
+    public shared({caller}) func createAssetCan () : async Result.Result<(Principal, Principal), Error> {
+
+        if(not Utils.isAuthorized(caller, authorized)) {
+            return #err(#NotAuthorized);
+        };
+
+        if(assetCanisterIds.size() != 0) { return #err(#Unknown("Already exists")); };
+
+        let tb : Buffer.Buffer<Principal> = Buffer.Buffer(1);
+        let assetCan = await assetC.Assets(caller);
+        let assetCanisterId = await assetCan.getCanisterId();
+
+        tb.add(assetCanisterId);
+
+        assetCanisterIds := tb.toArray();
+
+        return #ok((Principal.fromActor(this), assetCanisterId));
+
+    };
+
     public query({caller}) func authorizedArr() : async Result.Result<[Principal], Error> {
 
         if(not Utils.isAuthorized(caller, authorized)) {

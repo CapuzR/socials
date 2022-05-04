@@ -8,6 +8,7 @@ import Int "mo:base/Int";
 import Iter "mo:base/Iter";
 import Result "mo:base/Result";
 import Time "mo:base/Time";
+import Blob "mo:base/Blob";
 import Rels "./Rels/Rels";
 import Source "mo:uuid/async/SourceV4";
 import UUID "mo:uuid/UUID";
@@ -222,9 +223,14 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
 
         let g = Source.Source();
         let postId = Text.concat("P", UUID.toText(await g.new()));
+        var assetName = "http://localhost:8000/";
+        assetName := Text.concat(assetName,  postId);
+        assetName := Text.concat(assetName, "?canisterId=");
+        assetName := Text.concat(assetName, Principal.toText(assetCanisterIds[0]));
 
         let fullPostBasics = {
-            asset = Text.concat(Principal.toText(assetCanisterIds[0]), Text.concat(".raw.ic0.app/", postId));
+            // asset = Text.concat(Principal.toText(assetCanisterIds[0]), Text.concat(".raw.ic0.app/", postId));
+            asset = assetName;
             title = postData.postBasics.title;
             description = postData.postBasics.description;
             artType = postData.postBasics.artType;
@@ -1197,31 +1203,28 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
 //---------------Private
 //Posts
 
-    private func _storeImage(name : Text, asset : Blob) : async () {
-        let key = Text.concat(name, ".jpeg");
+    private func _storeImage(key : Text, asset : Blob) : async () {
         
         let aCActor = actor(Principal.toText(assetCanisterIds[0])): actor { 
             store : shared ({
                 key : Text;
                 content_type : Text;
                 content_encoding : Text;
-                content : Blob;
-                sha256 : ?Blob;
+                content : [Nat8];
+                sha256 : ?[Nat8];
             }) -> async ()
         };
         await aCActor.store({
                 key = key;
                 content_type = "image/jpeg";
                 content_encoding = "identity";
-                content = asset;
+                content = Blob.toArray(asset);
                 sha256 = null;
         });
 
     };
 
-    private func _deleteImage(name : Text) : async () {
-
-        let key = Text.concat(name, ".jpeg");
+    private func _deleteImage(key : Text) : async () {
         
         let aCActor = actor(Principal.toText(assetCanisterIds[0])): actor { 
             delete_asset : shared ({

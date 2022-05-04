@@ -19,7 +19,7 @@ dfx canister call socials createAssetCan
 ### 1. Assign Username to your principal.
 
 ```bash
-export USERNAME="capuzr"
+export USERNAME="capuzr"    
 dfx canister call socials relPrincipalWithUsername '(principal "'$(dfx identity get-principal)'", "'${USERNAME}'")'
 ```
 

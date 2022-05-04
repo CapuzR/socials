@@ -13,6 +13,7 @@ import SHA256 "mo:sha/SHA256";
 import Text "mo:base/Text";
 import Time "mo:base/Time";
 import Principal "mo:base/Principal";
+import Debug "mo:base/Debug";
 
 import Prim "mo:⛔"; // toLower...
 
@@ -273,24 +274,37 @@ shared({caller = owner}) actor class Assets(initPpal : Principal) : async AssetS
         {content = []};
     };
 
+    private func _getAssetKey(path : Text) : Text {
+
+        var assetKey = (Iter.toArray(Text.split(path, #text("/"))))[Iter.toArray(Text.split(path, #text("/"))).size()-1];
+
+        if (Text.contains(assetKey, #text("?"))) {
+            Debug.print(debug_show("Interrogacion"));
+            assetKey := (Iter.toArray(Text.split(assetKey, #text("?"))))[0];
+        };
+
+        return assetKey;
+    };
+
     public shared query({caller}) func http_request(
         r : AssetStorage.HttpRequest,
     ) : async AssetStorage.HttpResponse {
-        let assetKey = (Iter.toArray(Text.split(r.url, #text("/"))))[Text.size(r.url)-1];
-        if(Text.startsWith(assetKey, #text("T"))) {
-            let encodings = Buffer.Buffer<Text>(r.headers.size());
-            for ((k, v) in r.headers.vals()) {
-                if (textToLower(k) == "accept-encoding") {
-                    for (v in Text.split(v, #text(","))) {
-                        encodings.add(v);
-                    };
+
+        var assetKey = _getAssetKey(r.url);
+        
+        let encodings = Buffer.Buffer<Text>(r.headers.size());
+        for ((k, v) in r.headers.vals()) {
+            if (textToLower(k) == "accept-encoding") {
+                for (v in Text.split(v, #text(","))) {
+                    encodings.add(v);
                 };
             };
+        };
             
             encodings.add("identity");
             
             // TODO: url decode + remove path.
-            switch (state.assets.get(r.url)) {
+            switch (state.assets.get(assetKey)) {
                 case (null) {};
                 case (? asset) {
                     for (encoding_name in encodings.vals()) {
@@ -320,14 +334,6 @@ shared({caller = owner}) actor class Assets(initPpal : Principal) : async AssetS
                 streaming_strategy = null;
                 status_code        = 404;
             };
-        } else {
-            return {
-                body               = Blob.toArray(Text.encodeUtf8("asset not found: " # r.url));
-                headers            = [];
-                streaming_strategy = null;
-                status_code        = 404;
-            };
-        };
     };
 
     private func _create_strategy(

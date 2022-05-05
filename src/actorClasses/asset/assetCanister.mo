@@ -276,10 +276,15 @@ shared({caller = owner}) actor class Assets(initPpal : Principal) : async AssetS
 
     private func _getAssetKey(path : Text) : Text {
 
-        var assetKey = (Iter.toArray(Text.split(path, #text("/"))))[Iter.toArray(Text.split(path, #text("/"))).size()-1];
+        var assetKey : Text = (Iter.toArray(Text.split(path, #text("/"))))[Iter.toArray(Text.split(path, #text("/"))).size()-1];
+        switch(Text.stripStart(assetKey, #text("/"))) {
+            case (null) {};
+            case (? s) {
+                assetKey := s;
+            };
+        };
 
         if (Text.contains(assetKey, #text("?"))) {
-            Debug.print(debug_show("Interrogacion"));
             assetKey := (Iter.toArray(Text.split(assetKey, #text("?"))))[0];
         };
 

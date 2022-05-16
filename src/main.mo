@@ -223,10 +223,12 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
 
         let g = Source.Source();
         let postId = Text.concat("P", UUID.toText(await g.new()));
-        var assetName = "http://localhost:8000/";
-        assetName := Text.concat(assetName,  postId);
-        assetName := Text.concat(assetName, "?canisterId=");
-        assetName := Text.concat(assetName, Principal.toText(assetCanisterIds[0]));
+        // var assetName = "http://localhost:8000/";
+        // assetName := Text.concat(assetName,  postId);
+        // assetName := Text.concat(assetName, "?canisterId=");
+        // assetName := Text.concat(assetName, Principal.toText(assetCanisterIds[0]));
+        
+        let assetName = "http://" # Principal.toText(assetCanisterIds[0]) # ".raw.ic0.app/A" # postId;
 
         let fullPostBasics = {
             // asset = Text.concat(Principal.toText(assetCanisterIds[0]), Text.concat(".raw.ic0.app/", postId));
@@ -391,7 +393,6 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                     continue l;
                 };
                 case (? cs) {
-            Debug.print(debug_show("pasó?2"));
                     pBuff.add({
                         artistUsername = principalUsernameRels.get0(artistPostsRels.get1(p.0)[0])[0];
                         postId = p.0;
@@ -583,7 +584,6 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
         );
 
         switch(result) {
-            // If there are no matches, add artist
             case null {
                 #err(#Unknown("Post not found"));
             };
@@ -1214,14 +1214,13 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                 sha256 : ?[Nat8];
             }) -> async ()
         };
-        await aCActor.store({
+        let result = await aCActor.store({
                 key = key;
                 content_type = "image/jpeg";
                 content_encoding = "identity";
                 content = Blob.toArray(asset);
                 sha256 = null;
         });
-
     };
 
     private func _deleteImage(key : Text) : async () {
@@ -1533,6 +1532,10 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
             };
         };
     };
+
+    // private func _countComment ( targetId : Text ) : Result.Result<Nat, Error> {
+
+    // };
     
 //Artist
 

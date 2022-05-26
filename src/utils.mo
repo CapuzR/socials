@@ -54,8 +54,8 @@ module {
     };
 
     public func comparePR(x : PostRead, y : PostRead) : { #less; #equal; #greater } {
-        if (Int.less(x.post.createdAt, y.post.createdAt)) { return #less }
+        if (Int.less(x.post.createdAt, y.post.createdAt)) { return #greater }
         else if (Int.equal(x.post.createdAt, y.post.createdAt)) { return #equal }
-        else { return #greater }
+        else { return #less }
     };
 }

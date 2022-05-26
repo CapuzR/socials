@@ -11,7 +11,7 @@ module {
     };
     public type PostCreate = {
         postBasics : PostBasics;
-        postImage : Blob;
+        postImage : [Nat8];
     };
     public type PostUpdate = {
         postId : Text;

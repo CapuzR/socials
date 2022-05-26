@@ -14,6 +14,7 @@ import Source "mo:uuid/async/SourceV4";
 import UUID "mo:uuid/UUID";
 import Utils "./utils";
 import Debug "mo:base/Debug";
+import Cycles "mo:base/ExperimentalCycles";
 
 import assetC "./actorClasses/asset/assetCanister";
 
@@ -255,10 +256,10 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
 
         switch(existing) {
             case null {
-                posts := newPosts;
                 
                 await _storeImage(postId, postData.postImage);
 
+                posts := newPosts;
                 artistPostsRels.put(caller, postId);
                 label l for(d in postData.postBasics.details.vals()) {
                     if(d.0 == "galleryId") {
@@ -1103,7 +1104,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
     };
     
 //Comments
-    public shared({caller}) func createComment (targetId : Text, comment : CommentCreate) : async Result.Result<(), Error> {
+    public shared({caller}) func createComment (targetId : Text, comment : CommentCreate) : async Result.Result<Text, Error> {
         
         if(Principal.isAnonymous(caller)) {
             return #err(#NotAuthorized);
@@ -1118,7 +1119,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
         };
 
         _addComment(targetId, commentId, caller, newComment);
-        #ok(());
+        #ok(commentId);
     };
 
     public query({caller}) func readComments (targetId : Text) : async Result.Result<[(Principal, Text, Text, Comment)], Error> {
@@ -1203,8 +1204,13 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
 //---------------Private
 //Posts
 
-    private func _storeImage(key : Text, asset : Blob) : async () {
-        
+    private func _storeImage(key : Text, asset : [Nat8]) : async () {
+
+        let buff : Buffer.Buffer<Nat8> = Buffer.Buffer(1);
+        for (nat in asset.vals()) {
+            buff.add(nat);
+        };
+        Debug.print(debug_show(buff.size()));
         let aCActor = actor(Principal.toText(assetCanisterIds[0])): actor { 
             store : shared ({
                 key : Text;
@@ -1218,7 +1224,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                 key = key;
                 content_type = "image/jpeg";
                 content_encoding = "identity";
-                content = Blob.toArray(asset);
+                content = asset;
                 sha256 = null;
         });
     };
@@ -1632,6 +1638,8 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
         if(assetCanisterIds.size() != 0) { return #err(#Unknown("Already exists")); };
 
         let tb : Buffer.Buffer<Principal> = Buffer.Buffer(1);
+        let cycleShare = 1_000_000_000_000;
+        Cycles.add(cycleShare);
         let assetCan = await assetC.Assets(caller);
         let assetCanisterId = await assetCan.getCanisterId();
 
@@ -1666,37 +1674,37 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
 
 //---------------For internal test only
 
-    public query({caller}) func readFirstPostId (artistPpal : Principal) : async Text {
+    // public query({caller}) func readFirstPostId (artistPpal : Principal) : async Text {
 
-        artistPostsRels.get0(artistPpal)[0];
-    };
+    //     artistPostsRels.get0(artistPpal)[0];
+    // };
 
-    public query func commentsSize() :async Nat {
-        Trie.size(comments);
-    };
+    // public query func commentsSize() :async Nat {
+    //     Trie.size(comments);
+    // };
 
-    public query({caller}) func artistsCommentsSize(principal : Principal) :async Nat {
-        artistCommentsRels.get0(principal).size();
-    };
+    // public query({caller}) func artistsCommentsSize(principal : Principal) :async Nat {
+    //     artistCommentsRels.get0(principal).size();
+    // };
 
-    public query({caller}) func readFirstCommentById (targetId : Text) : async Text {
+    // public query({caller}) func readFirstCommentById (targetId : Text) : async Text {
 
-        let targetComments = Trie.find(
-            comments, 
-            Utils.keyText(targetId),
-            Text.equal
-        );
+    //     let targetComments = Trie.find(
+    //         comments, 
+    //         Utils.keyText(targetId),
+    //         Text.equal
+    //     );
 
-        switch(targetComments) {
-            case null {
-                "Target doesn't have comments.";
-            };
-            case (? cs) {
-                let fCsIter : Iter.Iter<(Text, Comment)> = Trie.iter(cs);
-                Iter.toArray(fCsIter)[0].0;
-            };
-        };
-    };
+    //     switch(targetComments) {
+    //         case null {
+    //             "Target doesn't have comments.";
+    //         };
+    //         case (? cs) {
+    //             let fCsIter : Iter.Iter<(Text, Comment)> = Trie.iter(cs);
+    //             Iter.toArray(fCsIter)[0].0;
+    //         };
+    //     };
+    // };
 
 //-----------End For internal tests only.
 

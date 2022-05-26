@@ -3,6 +3,10 @@
     "socials": {
       "main": "src/main.mo",
       "type": "motoko"
+    },
+    "socialsAC": {
+      "main": "src/actorClasses/asset/assetCanister.mo",
+      "type": "motoko"
     }
   },
   "defaults": {

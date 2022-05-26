@@ -117,11 +117,14 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                         Utils.keyText(pId),
                         Text.equal
                     );
+                    
+                    let artistPrincipal = artistPostsRels.get1(pId)[0];
 
                     switch(targetComments) {
                         case null {
                             postsBuff.add({
-                                artistUsername = principalUsernameRels.get0(artistPostsRels.get1(pId)[0])[0];
+                                artistUsername = principalUsernameRels.get0(artistPrincipal)[0];
+                                artistPrincipal = artistPrincipal;
                                 postId = pId;
                                 post = post;
                                 comments = null;
@@ -133,7 +136,8 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                         };
                         case (? cs) {
                             postsBuff.add({
-                                artistUsername = principalUsernameRels.get0(artistPostsRels.get1(pId)[0])[0];
+                                artistUsername = principalUsernameRels.get0(artistPrincipal)[0];
+                                artistPrincipal = artistPrincipal;
                                 postId = pId;
                                 post = post;
                                 comments= ?_readComments(cs);
@@ -319,11 +323,14 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                     Utils.keyText(postId),
                     Text.equal
                 );
+                
+                let artistPrincipal = artistPostsRels.get1(postId)[0];
 
                 switch(targetComments) {
                     case null {
                         #ok({
-                            artistUsername = principalUsernameRels.get0(artistPostsRels.get1(postId)[0])[0];
+                            artistUsername = principalUsernameRels.get0(artistPrincipal)[0];
+                            artistPrincipal = artistPrincipal;
                             postId = postId;
                             post = post;                                
                             comments = null;
@@ -334,7 +341,8 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                     };
                     case (? cs) {
                         #ok({
-                            artistUsername = principalUsernameRels.get0(artistPostsRels.get1(postId)[0])[0];
+                            artistUsername = principalUsernameRels.get0(artistPrincipal)[0];
+                            artistPrincipal = artistPrincipal;
                             postId = postId;
                             post = post;                                
                             comments = ?_readComments(cs);
@@ -384,6 +392,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                 case null {
                     pBuff.add({
                         artistUsername = principalUsernameRels.get0(artistPrincipal)[0];
+                        artistPrincipal = artistPrincipal;
                         postId = p.0;
                         post = p.1;
                         comments = null;
@@ -396,6 +405,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                 case (? cs) {
                     pBuff.add({
                         artistUsername = principalUsernameRels.get0(artistPostsRels.get1(p.0)[0])[0];
+                        artistPrincipal = artistPrincipal;
                         postId = p.0;
                         post = p.1;
                         comments = ?_readComments(cs);
@@ -470,11 +480,14 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                         Utils.keyText(pId),
                         Text.equal
                     );
+                    
+                    let artistPrincipal = artistPostsRels.get1(postId)[0];
 
                     switch(targetComments) {
                         case null {
                             pBuff.add({
-                                artistUsername = principalUsernameRels.get0(artistPostsRels.get1(pId)[0])[0];
+                                artistUsername = principalUsernameRels.get0(artistPrincipal)[0];
+                                artistPrincipal = artistPrincipal;
                                 postId = pId;
                                 post = post;
                                 comments = null;
@@ -486,7 +499,8 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                         };
                         case (? cs) {
                             pBuff.add({
-                                artistUsername = principalUsernameRels.get0(artistPostsRels.get1(pId)[0])[0];
+                                artistUsername = principalUsernameRels.get0(artistPrincipal)[0];
+                                artistPrincipal = artistPrincipal;
                                 postId = pId;
                                 post = post;
                                 comments = ?_readComments(cs);
@@ -540,11 +554,14 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                         Utils.keyText(postId),
                         Text.equal
                     );
+                    
+                    let artistPrincipal = artistPostsRels.get1(postId)[0];
 
                     switch(targetComments) {
                         case null {
                             pBuff.add({
-                                artistUsername = principalUsernameRels.get0(artistPostsRels.get1(postId)[0])[0];
+                                artistUsername = principalUsernameRels.get0(artistPrincipal)[0];
+                                artistPrincipal = artistPrincipal;
                                 postId = postId;
                                 post = post;
                                 comments = null;
@@ -556,7 +573,8 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                         };
                         case (? cs) {
                             pBuff.add({
-                                artistUsername = principalUsernameRels.get0(artistPostsRels.get1(postId)[0])[0];
+                                artistUsername = principalUsernameRels.get0(artistPrincipal)[0];
+                                artistPrincipal = artistPrincipal;
                                 postId = postId;
                                 post = post;
                                 comments = ?_readComments(cs);

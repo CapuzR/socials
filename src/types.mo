@@ -30,6 +30,7 @@ module {
 
     public type PostRead = {
         artistUsername : Text;
+        artistPrincipal : Principal;
         postId : Text;
         post : Post;
         comments : ?[(Principal, Text, Text, Comment)];

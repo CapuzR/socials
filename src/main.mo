@@ -140,7 +140,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                                 artistPrincipal = artistPrincipal;
                                 postId = pId;
                                 post = post;
-                                comments= ?_readComments(cs);
+                                comments= ?_readComments(cs, caller);
                                 suggestions= ?_readPostSuggestions(pId);
                                 likesQty= _readLikesQtyByTarget(pId);
                                 likedByCaller = _isPostLikedByUser(pId, caller);
@@ -345,7 +345,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                             artistPrincipal = artistPrincipal;
                             postId = postId;
                             post = post;                                
-                            comments = ?_readComments(cs);
+                            comments = ?_readComments(cs, caller);
                             suggestions = ?_readPostSuggestions(postId);
                             likesQty = _readLikesQtyByTarget(postId);
                             likedByCaller = _isPostLikedByUser(postId, caller);
@@ -408,7 +408,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                         artistPrincipal = artistPrincipal;
                         postId = p.0;
                         post = p.1;
-                        comments = ?_readComments(cs);
+                        comments = ?_readComments(cs, caller);
                         suggestions = ?_readPostSuggestions(p.0);
                         likesQty = _readLikesQtyByTarget(p.0);
                         likedByCaller = _isPostLikedByUser(p.0, caller);
@@ -481,7 +481,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                         Text.equal
                     );
                     
-                    let artistPrincipal = artistPostsRels.get1(postId)[0];
+                    let artistPrincipal = artistPostsRels.get1(pId)[0];
 
                     switch(targetComments) {
                         case null {
@@ -503,7 +503,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                                 artistPrincipal = artistPrincipal;
                                 postId = pId;
                                 post = post;
-                                comments = ?_readComments(cs);
+                                comments = ?_readComments(cs, caller);
                                 suggestions = ?_readPostSuggestions(pId);
                                 likesQty = _readLikesQtyByTarget(pId);
                                 likedByCaller = _isPostLikedByUser(pId, caller);
@@ -577,7 +577,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                                 artistPrincipal = artistPrincipal;
                                 postId = postId;
                                 post = post;
-                                comments = ?_readComments(cs);
+                                comments = ?_readComments(cs, caller);
                                 suggestions = ?_readPostSuggestions(postId);
                                 likesQty = _readLikesQtyByTarget(postId);
                                 likedByCaller = _isPostLikedByUser(postId, caller);
@@ -1140,7 +1140,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
         #ok(commentId);
     };
 
-    public query({caller}) func readComments (targetId : Text) : async Result.Result<[(Principal, Text, Text, Comment)], Error> {
+    public query({caller}) func readComments (targetId : Text) : async Result.Result<[(Principal, Text, Text, Comment, Nat, Principal)], Error> {
 
         let targetComments = Trie.find(
             comments, 
@@ -1153,7 +1153,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
                 #err(#Unknown("Target doesn't have comments."));
             };
             case (? cs) {
-                #ok(_readComments(cs));
+                #ok(_readComments(cs, caller));
             };
         };
     };
@@ -1454,19 +1454,21 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
         artistCommentsRels.put(artistPpal, commentId);
     };
 
-    private func _readComments (cs : Trie.Trie<Text, Comment>) : [(Principal, Text, Text, Comment)] {
+    private func _readComments (cs : Trie.Trie<Text, Comment>, caller : Principal) : [(Principal, Text, Text, Comment, Nat, Principal)] {
         let fCsIter : Iter.Iter<(Text, Comment)> = Trie.iter(cs);
-        let fCsBuff : Buffer.Buffer<(Principal, Text, Text, Comment)> = Buffer.Buffer(0);
+        let fCsBuff : Buffer.Buffer<(Principal, Text, Text, Comment, Nat, Principal)> = Buffer.Buffer(0);
         for (c in fCsIter) {
             let artistP = artistCommentsRels.get1(c.0)[0];
             let artistU = principalUsernameRels.get0(artistP)[0];
 
             fCsBuff.add(
                 (
-                    artistP,
-                    artistU,
-                    c.0,
-                    c.1
+                    artistP, //artistPrincipal
+                    artistU, //artistUsername
+                    c.0, //Id
+                    c.1, //Comment
+                    _countComments(c.0),
+                    caller
                 )
             );
         };
@@ -1557,9 +1559,30 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
         };
     };
 
-    // private func _countComment ( targetId : Text ) : Result.Result<Nat, Error> {
+    private func _countComments ( commentId : Text ) : Nat {
 
-    // };
+        let newComments = Trie.find(
+            comments,
+            Utils.keyText(commentId),
+            Text.equal
+        );
+
+        switch(newComments) {
+            case null {
+                0;
+            };
+            case (? cs) {
+                let csIter : Iter.Iter<(Text, Comment)> = Trie.iter(cs);
+                var count : Nat = 0;
+                for (c in csIter) {
+                    count += 1;
+                };
+                count;
+            };
+        };
+
+        
+    };
     
 //Artist
 

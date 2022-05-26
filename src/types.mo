@@ -33,7 +33,7 @@ module {
         artistPrincipal : Principal;
         postId : Text;
         post : Post;
-        comments : ?[(Principal, Text, Text, Comment)];
+        comments : ?[(Principal, Text, Text, Comment, Nat, Principal)];
         suggestions : ?[(Principal, Text, Text, Suggestion)];
         likesQty : Int;
         likedByCaller : Bool;

@@ -83,12 +83,7 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
 //---------------Public
 //Artist
 
-    public query({caller}) func readArtistProfile (username : Text) : async Result.Result<ArtistRead, Error> {
-
-        if(Principal.isAnonymous(caller)) {
-            return #err(#NotAuthorized);
-        };
-
+    private func _readArtistProfile (username : Text, caller : Principal) : Result.Result<ArtistRead, Error> {
         let principalIds : [Principal] = _getPrincipalByUsername(username);
     
         if(principalIds.size() == 0) {
@@ -169,6 +164,18 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
             galleriesQty = _readGalleriesQty(artistPpal);
             followedByCaller =  _followedBy(artistPpal, caller);
         });
+    };
+
+    public query({caller}) func readArtistProfile (username : Text) : async Result.Result<ArtistRead, Error> {
+
+        if(Principal.isAnonymous(caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        switch(_readArtistProfile(username, caller)) {
+            case(#err(e)) { #err(e) };
+            case(#ok(aR)) { #ok(aR) };
+        };
     };
 
     public shared({caller}) func removeArtist () : async Result.Result<(), Error> {
@@ -1215,6 +1222,52 @@ shared({ caller = owner }) actor class(initOptions: Types.InitOptions) = this {
         };
             principalUsernameRels.put(artistP, username);
         #ok();
+    };
+
+    private func _searchArtistByUsername (searchQuery : Text) : ?[Text] {
+        
+        let ppalUsernameRels : [(Principal, Text)] = getAllPrincipalUsernameRels();
+        let usernameBuff : Buffer.Buffer<Text> = Buffer.Buffer(0);
+
+        for (rel in ppalUsernameRels.vals()) {
+            if(Text.contains(rel.1, #text(searchQuery))) {
+                usernameBuff.add(rel.1);
+            };
+        };
+
+        if (usernameBuff.size() == 0) {
+            return null;
+        };
+
+        return ?usernameBuff.toArray();
+    };
+
+    public shared ({caller}) func searchArtistByUsername (searchQuery : Text) : async Result.Result<[ArtistRead], Error> {
+        
+        if(Principal.isAnonymous(caller)) {
+            return #err(#NotAuthorized);
+        };
+
+        let usernameRes : ?[Text] = _searchArtistByUsername(searchQuery);
+
+        switch (usernameRes) {
+            case (null) { #err(#NonExistentItem) };
+            case (?usernameArr) {
+                let userBuff : Buffer.Buffer<ArtistRead> = Buffer.Buffer(0);
+                label l for (username in usernameArr.vals()) {
+                    switch(_readArtistProfile(username, caller)) {
+                        case (#err(e)) { continue l; };
+                        case (#ok(aR)) {
+                            userBuff.add(aR);
+                        };
+                    };
+                };
+                if (userBuff.size() == 0) {
+                    return #err(#NonExistentItem);
+                };
+                return #ok(userBuff.toArray());
+            };
+        };
     };
 
 //-----------End Public
